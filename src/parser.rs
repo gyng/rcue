@@ -83,8 +83,14 @@ fn parse() -> Result<(), String> {
     let mut buf_reader = BufReader::new(file);
 
     let mut cue = Cue::new();
-    let mut current_file: Option<&mut &CueFile> = None;
-    let mut current_track: Option<&mut Track> = None;
+
+    fn last_file(cue: &mut Cue) -> Option<&mut CueFile> {
+        cue.files.last_mut()
+    }
+
+    fn last_track(cue: &mut Cue) -> Option<&mut Track> {
+        last_file(cue).and_then(|f| f.tracks.last_mut())
+    }
 
     for line in buf_reader.lines() {
         if let Ok(l) = line {
@@ -94,39 +100,30 @@ fn parse() -> Result<(), String> {
             match token {
                 Token::Rem(field, value) => cue.comments.push((field, value)),
                 Token::File(file, format) => {
-                    // let mut file = CueFile::new(&format);
-                    // current_file = Some(&mut file);
-                    // cue.files.push(CueFile::new(&format));
-
                     cue.files.push(CueFile::new(&format));
-                    // current_file = cue.files.last().as_mut();
                 }
                 Token::Track(idx, mode) => {
-                    if let Some(ref mut file) = current_file {
-                        // let mut track = Track::new(&idx, &mode);
-                        // current_track = Some(&mut track);
-                        // file.tracks.push(track);
-
-                        // file.tracks.push(Track::new(&idx, &mode));
-                        // current_track = file.tracks.last().as_mut();
+                    if let Some(file) = last_file(&mut cue) {
+                        file.tracks.push(Track::new(&idx, &mode));
                     }
                 }
                 Token::Title(title) => {
-                    if let Some(ref mut track) = current_track {
-                        track.title = Some(title);
+                    if last_track(&mut cue).is_some() {
+                        last_track(&mut cue).unwrap().title = Some(title);
                     } else {
                         cue.title = Some(title)
                     }
                 }
                 Token::Performer(performer) => {
-                    if let Some(ref mut track) = current_track {
-                        track.performer = Some(performer);
+                    // this double check might be able to go away under non-lexical lifetimes
+                    if last_track(&mut cue).is_some() {
+                        last_track(&mut cue).unwrap().performer = Some(performer);
                     } else {
                         cue.performer = Some(performer);
                     }
                 }
                 Token::Index(idx, time) => {
-                    if let Some(ref mut track) = current_track {
+                    if let Some(track) = last_track(&mut cue) {
                         track.indices.push((idx, time));
                     }
                 }
