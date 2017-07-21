@@ -34,7 +34,6 @@ fn main() {
 
 ## TODO
 
-* Stricter strict mode
 * Significant indentation/context support
 * Serializer
 * time::Duration for timestamps

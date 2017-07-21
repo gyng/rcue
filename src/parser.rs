@@ -144,6 +144,20 @@ pub fn parse_from_file(path: &str, strict: bool) -> Result<Cue, CueError> {
 /// ```
 #[allow(dead_code)]
 pub fn parse(buf_reader: Box<BufRead>, strict: bool) -> Result<Cue, CueError> {
+    macro_rules! fail_if_strict {
+        ($line_no:ident, $line:ident, $reason:expr) => (
+            if strict {
+                println!(
+                    "Strict mode failure: did not parse line {}: {}\n\tReason: {:?}",
+                    $line_no + 1,
+                    $line,
+                    $reason
+                );
+                return Err(CueError::Parse(format!("strict mode failure: {}", $reason)));
+            }
+        )
+    }
+
     let mut cue = Cue::new();
 
     fn last_file(cue: &mut Cue) -> Option<&mut CueFile> {
@@ -176,6 +190,8 @@ pub fn parse(buf_reader: Box<BufRead>, strict: bool) -> Result<Cue, CueError> {
                 Ok(Token::Track(idx, mode)) => {
                     if let Some(file) = last_file(&mut cue) {
                         file.tracks.push(Track::new(&idx, &mode));
+                    } else {
+                        fail_if_strict!(i, l, "TRACK assigned to no FILE");
                     }
                 }
                 Ok(Token::Title(title)) => {
@@ -196,30 +212,29 @@ pub fn parse(buf_reader: Box<BufRead>, strict: bool) -> Result<Cue, CueError> {
                 Ok(Token::Index(idx, time)) => {
                     if let Some(track) = last_track(&mut cue) {
                         track.indices.push((idx, time));
+                    } else {
+                        fail_if_strict!(i, l, "INDEX assigned to no track");
                     }
                 }
                 Ok(Token::Pregap(time)) => {
                     if last_track(&mut cue).is_some() {
                         last_track(&mut cue).unwrap().pregap = Some(time);
+                    } else {
+                        fail_if_strict!(i, l, "PREGAP assigned to no track");
                     }
                 }
                 Ok(Token::Postgap(time)) => {
                     if last_track(&mut cue).is_some() {
                         last_track(&mut cue).unwrap().postgap = Some(time);
+                    } else {
+                        fail_if_strict!(i, l, "POSTGAP assigned to no track");
                     }
                 }
                 Ok(Token::Catalog(id)) => {
                     cue.catalog = Some(id);
                 }
                 Ok(Token::Unknown(line)) => {
-                    if strict {
-                        println!(
-                            "Strict mode failure: Unknown token - did not parse line {}: {:?}",
-                            i + 1,
-                            l
-                        );
-                        return Err(CueError::Parse("strict mode failure: bad line".to_string()));
-                    }
+                    fail_if_strict!(i, l, "unknown token");
 
                     if last_track(&mut cue).is_some() {
                         last_track(&mut cue).unwrap().unknown.push(line);
@@ -228,14 +243,7 @@ pub fn parse(buf_reader: Box<BufRead>, strict: bool) -> Result<Cue, CueError> {
                     }
                 }
                 _ => {
-                    if strict {
-                        println!(
-                            "Strict mode failure: Bad line - did not parse line {}: {:?}",
-                            i + 1,
-                            l
-                        );
-                        return Err(CueError::Parse("strict mode failure: bad line".to_string()));
-                    }
+                    fail_if_strict!(i, l, "bad line");
                     println!("Bad line - did not parse line {}: {:?}", i + 1, l);
                 }
             }
@@ -479,6 +487,58 @@ mod tests {
             "TRACK".to_string(),
             "2.1".to_string(),
         ));
+    }
+
+    #[test]
+    fn test_orphan_track_strict() {
+        let cue = parse_from_file("test/fixtures/orphan_track.cue", true);
+        assert!(cue.is_err());
+    }
+
+    #[test]
+    fn test_orphan_track_lenient() {
+        let cue = parse_from_file("test/fixtures/orphan_track.cue", false).unwrap();
+        assert_eq!(cue.files.len(), 0);
+    }
+
+    #[test]
+    fn test_orphan_index_strict() {
+        let cue = parse_from_file("test/fixtures/orphan_index.cue", true);
+        assert!(cue.is_err());
+    }
+
+    #[test]
+    fn test_orphan_index_lenient() {
+        let cue = parse_from_file("test/fixtures/orphan_index.cue", false).unwrap();
+        assert_eq!(cue.files[0].tracks.len(), 1);
+        assert_eq!(cue.files[0].tracks[0].indices.len(), 1);
+        assert_eq!(cue.files[0].tracks[0].indices[0], ("01".to_string(), "04:17:52".to_string()));
+    }
+
+    #[test]
+    fn test_orphan_pregap_strict() {
+        let cue = parse_from_file("test/fixtures/orphan_pregap.cue", true);
+        assert!(cue.is_err());
+    }
+
+    #[test]
+    fn test_orphan_pregap_lenient() {
+        let cue = parse_from_file("test/fixtures/orphan_pregap.cue", false).unwrap();
+        assert_eq!(cue.files[0].tracks.len(), 1);
+        assert!(cue.files[0].tracks[0].pregap.is_none());
+    }
+
+    #[test]
+    fn test_orphan_postgap_strict() {
+        let cue = parse_from_file("test/fixtures/orphan_postgap.cue", true);
+        assert!(cue.is_err());
+    }
+
+    #[test]
+    fn test_orphan_postgap_lenient() {
+        let cue = parse_from_file("test/fixtures/orphan_postgap.cue", false).unwrap();
+        assert_eq!(cue.files[0].tracks.len(), 1);
+        assert!(cue.files[0].tracks[0].pregap.is_none());
     }
 
     #[test]
