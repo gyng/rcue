@@ -1,5 +1,4 @@
 use itertools::Itertools;
-// use regex::Regex;
 
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -19,17 +18,23 @@ enum Token {
     None,
 }
 
-#[derive(Clone, Debug)]
+/// Represents a track in a [File]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Track {
-    no: String,
-    format: String,
-    title: Option<String>,
-    performer: Option<String>,
-    indices: Vec<(String, String)>,
-    unknown: Vec<String>,
+    /// track number
+    pub no: String,
+    /// track format (eg. AUDIO)
+    pub format: String,
+    pub title: Option<String>,
+    pub performer: Option<String>,
+    pub indices: Vec<(String, String)>,
+    pub comments: Vec<(String, String)>,
+    /// unhandled fields
+    pub unknown: Vec<String>,
 }
 
 impl Track {
+    /// Constructs a new Track.
     pub fn new(no: &str, format: &str) -> Self {
         Self {
             no: no.to_string(),
@@ -37,38 +42,47 @@ impl Track {
             title: None,
             performer: None,
             indices: Vec::new(),
+            comments: Vec::new(),
             unknown: Vec::new(),
         }
     }
 }
 
-#[derive(Clone, Debug)]
+/// Represents a FILE in a CUE.
+#[derive(Clone, Debug, PartialEq)]
 pub struct CueFile {
-    file: String,
-    format: String,
-    tracks: Vec<Track>,
+    /// path to file
+    pub file: String,
+    /// format (eg. WAVE, MP3)
+    pub format: String,
+    pub tracks: Vec<Track>,
+    pub comments: Vec<(String, String)>,
 }
 
 impl CueFile {
+    /// Constructs a new CueFile.
     pub fn new(file: &str, format: &str) -> Self {
         Self {
             file: file.to_string(),
             tracks: Vec::new(),
             format: format.to_string(),
+            comments: Vec::new(),
         }
     }
 }
 
+/// Represents a CUE sheet.
 #[derive(Clone, Debug)]
 pub struct Cue {
-    files: Vec<CueFile>,
-    title: Option<String>,
-    performer: Option<String>,
-    comments: Vec<(String, String)>, // are REM fields unique?
-    unknown: Vec<String>,
+    pub files: Vec<CueFile>,
+    pub title: Option<String>,
+    pub performer: Option<String>,
+    pub comments: Vec<(String, String)>, // are REM fields unique?
+    pub unknown: Vec<String>,
 }
 
 impl Cue {
+    /// Constructs a new Cue.
     pub fn new() -> Self {
         Self {
             files: Vec::new(),
@@ -80,6 +94,20 @@ impl Cue {
     }
 }
 
+/// Parses a CUE file at `path` into a `Cue` struct.
+///
+/// Strict mode will return `CueError` if invalid fields or extra lines are detected.
+/// When not in strict mode, bad lines and fields will be skipped, and unknown
+/// fields will be stored in cue.unknown.
+///
+/// # Example
+///
+/// ```
+/// use rcue::parser::parse_from_file;
+///
+/// let cue = parse_from_file("test/fixtures/unicode.cue", true).unwrap();
+/// assert_eq!(cue.title, Some("マジコカタストロフィ".to_string()));
+/// ```
 #[allow(dead_code)]
 pub fn parse_from_file(path: &str, strict: bool) -> Result<Cue, CueError> {
     let file = File::open(path)?;
@@ -87,6 +115,24 @@ pub fn parse_from_file(path: &str, strict: bool) -> Result<Cue, CueError> {
     parse(Box::new(buf_reader), strict)
 }
 
+/// Parses a `BufRead` into a `Cue` struct.
+///
+/// Strict mode will return `CueError` if invalid fields or extra lines are detected.
+/// When not in strict mode, bad lines and fields will be skipped, and unknown
+/// fields will be stored in cue.unknown.
+///
+/// # Example
+///
+/// ```
+/// use rcue::parser::parse;
+/// use std::fs::File;
+/// use std::io::BufReader;
+///
+/// let file = File::open("test/fixtures/unicode.cue").unwrap();
+/// let buf_reader = BufReader::new(file);
+/// let cue = parse(Box::new(buf_reader), true).unwrap();
+/// assert_eq!(cue.title, Some("マジコカタストロフィ".to_string()));
+/// ```
 #[allow(dead_code)]
 pub fn parse(buf_reader: Box<BufRead>, strict: bool) -> Result<Cue, CueError> {
     let mut cue = Cue::new();
@@ -104,7 +150,17 @@ pub fn parse(buf_reader: Box<BufRead>, strict: bool) -> Result<Cue, CueError> {
             let token = tokenize_line(&l);
 
             match token {
-                Ok(Token::Rem(field, value)) => cue.comments.push((field, value)),
+                Ok(Token::Rem(field, value)) => {
+                    let comment = (field, value);
+
+                    if last_track(&mut cue).is_some() {
+                        last_track(&mut cue).unwrap().comments.push(comment);
+                    } else if last_file(&mut cue).is_some() {
+                        last_file(&mut cue).unwrap().comments.push(comment);
+                    } else {
+                        cue.comments.push(comment);
+                    }
+                }
                 Ok(Token::File(file, format)) => {
                     cue.files.push(CueFile::new(&file, &format));
                 }
@@ -179,36 +235,47 @@ fn tokenize_line(line: &str) -> Result<Token, CueError> {
     }
 
     match tokens.next() {
-        Some("REM") => {
-            let key = next_token!(tokens, "missing REM key");
-            let val = unescape_string(&tokens.join(" "));
-            Ok(Token::Rem(key, val))
+        Some(t) => {
+            let uppercase = t.to_uppercase();
+            match uppercase.as_ref() {
+                "REM" => {
+                    let key = next_token!(tokens, "missing REM key");
+                    let val = unescape_string(&tokens.join(" "));
+                    Ok(Token::Rem(key, val))
+                }
+                "TITLE" => {
+                    let val = unescape_string(&tokens.join(" "));
+                    Ok(Token::Title(val))
+                }
+                "FILE" => {
+                    let l: Vec<_> = tokens.collect();
+                    let (&format, vals) = l.split_last().unwrap();
+                    let val = unescape_string(&vals.join(" "));
+                    Ok(Token::File(val, format.to_string()))
+                }
+                "PERFORMER" => {
+                    let val = unescape_string(&tokens.join(" "));
+                    Ok(Token::Performer(val))
+                }
+                "TRACK" => {
+                    let val = next_token!(tokens, "missing TRACK number");
+                    let mode = next_token!(tokens, "missing TRACK mode");
+                    Ok(Token::Track(val, mode))
+                }
+                "INDEX" => {
+                    let val = next_token!(tokens, "missing INDEX number");
+                    let time = next_token!(tokens, "missing INDEX time");
+                    Ok(Token::Index(val, time))
+                }
+                _ => {
+                    if t.is_empty() {
+                        Ok(Token::None)
+                    } else {
+                        Ok(Token::Unknown(line.to_string()))
+                    }
+                }
+            }
         }
-        Some("TITLE") => {
-            let val = unescape_string(&tokens.join(" "));
-            Ok(Token::Title(val))
-        }
-        Some("FILE") => {
-            let l: Vec<_> = tokens.collect();
-            let (&format, vals) = l.split_last().unwrap();
-            let val = unescape_string(&vals.join(" "));
-            Ok(Token::File(val, format.to_string()))
-        }
-        Some("PERFORMER") => {
-            let val = unescape_string(&tokens.join(" "));
-            Ok(Token::Performer(val))
-        }
-        Some("TRACK") => {
-            let val = next_token!(tokens, "missing TRACK number");
-            let mode = next_token!(tokens, "missing TRACK mode");
-            Ok(Token::Track(val, mode))
-        }
-        Some("INDEX") => {
-            let val = next_token!(tokens, "missing INDEX number");
-            let time = next_token!(tokens, "missing INDEX time");
-            Ok(Token::Index(val, time))
-        }
-        Some(_) => Ok(Token::Unknown(line.to_string())),
         _ => Ok(Token::None),
     }
 }
@@ -218,9 +285,158 @@ mod tests {
     use super::*;
 
     #[test]
-    fn check_string_between_quotes() {
-        let cue = parse_from_file("test.cue", true);
-        println!("{:#?}", cue);
-        assert!(false);
+    fn test_parsing_good_cue() {
+        let cue = parse_from_file("test/fixtures/good.cue", true).unwrap();
+        assert_eq!(cue.comments.len(), 4);
+        assert_eq!(cue.comments[0], (
+            "GENRE".to_string(),
+            "Alternative".to_string(),
+        ));
+        assert_eq!(cue.comments[1], ("DATE".to_string(), "1991".to_string()));
+        assert_eq!(cue.comments[2], (
+            "DISCID".to_string(),
+            "860B640B".to_string(),
+        ));
+        assert_eq!(cue.comments[3], (
+            "COMMENT".to_string(),
+            "ExactAudioCopy v0.95b4".to_string(),
+        ));
+        assert_eq!(cue.performer, Some("My Bloody Valentine".to_string()));
+        assert_eq!(cue.title, Some("Loveless".to_string()));
+        assert_eq!(cue.files.len(), 1);
+        assert_eq!(cue.files[0].file, "My Bloody Valentine - Loveless.wav");
+        assert_eq!(cue.files[0].format, "WAVE");
+        assert_eq!(cue.files[0].tracks.len(), 2);
+        assert_eq!(cue.files[0].tracks[0].no, "01".to_string());
+        assert_eq!(cue.files[0].tracks[0].format, "AUDIO".to_string());
+        assert_eq!(
+            cue.files[0].tracks[0].title,
+            Some("Only Shallow".to_string())
+        );
+        assert_eq!(
+            cue.files[0].tracks[0].performer,
+            Some("My Bloody Valentine".to_string())
+        );
+        assert_eq!(cue.files[0].tracks[0].indices.len(), 1);
+        assert_eq!(cue.files[0].tracks[0].indices[0], (
+            "01".to_string(),
+            "00:00:00".to_string(),
+        ));
+    }
+
+    #[test]
+    fn test_parsing_unicode() {
+        let cue = parse_from_file("test/fixtures/unicode.cue", true).unwrap();
+        assert_eq!(
+            cue.title,
+            Some("マジコカタストロフィ".to_string())
+        );
+    }
+
+    #[test]
+    fn test_case_sensitivity() {
+        let cue = parse_from_file("test/fixtures/case_sensitivity.cue", true).unwrap();
+        assert_eq!(cue.title, Some("Loveless".to_string()));
+        assert_eq!(cue.performer, Some("My Bloody Valentine".to_string()));
+    }
+
+    #[test]
+    fn test_bad_intentation() {
+        let cue = parse_from_file("test/fixtures/bad_indentation.cue", true).unwrap();
+        assert_eq!(cue.title, Some("Loveless".to_string()));
+        assert_eq!(cue.files.len(), 1);
+        assert_eq!(cue.files[0].tracks.len(), 2);
+        assert_eq!(
+            cue.files[0].tracks[0].title,
+            Some("Only Shallow".to_string())
+        );
+    }
+
+    #[test]
+    fn test_unknown_field_lenient() {
+        let cue = parse_from_file("test/fixtures/unknown_field.cue", false).unwrap();
+        assert_eq!(cue.unknown[0], "FOO WHAT 12345");
+    }
+
+    #[test]
+    fn test_unknown_field_strict() {
+        let cue = parse_from_file("test/fixtures/unknown_field.cue", true);
+        assert!(cue.is_err());
+    }
+
+    #[test]
+    fn test_empty_lines_lenient() {
+        let cue = parse_from_file("test/fixtures/empty_lines.cue", false).unwrap();
+        assert_eq!(cue.comments.len(), 4);
+        assert_eq!(cue.files.len(), 1);
+        assert_eq!(cue.files[0].tracks.len(), 2);
+    }
+
+    #[test]
+    fn test_empty_lines_strict() {
+        let cue = parse_from_file("test/fixtures/empty_lines.cue", true);
+        assert!(cue.is_err());
+    }
+
+    #[test]
+    fn test_duplicate_comment() {
+        let cue = parse_from_file("test/fixtures/duplicate_comment.cue", true).unwrap();
+        assert_eq!(cue.comments.len(), 5);
+        assert_eq!(cue.comments[1], ("DATE".to_string(), "1991".to_string()));
+        assert_eq!(cue.comments[2], ("DATE".to_string(), "1992".to_string()));
+    }
+
+    #[test]
+    fn test_duplicate_title() {
+        let cue = parse_from_file("test/fixtures/duplicate_title.cue", true).unwrap();
+        assert_eq!(cue.title, Some("Loveless 2".to_string()));
+    }
+
+    #[test]
+    fn test_duplicate_track() {
+        let cue = parse_from_file("test/fixtures/duplicate_track.cue", true).unwrap();
+        assert_eq!(cue.files[0].tracks[0], cue.files[0].tracks[1]);
+    }
+
+    #[test]
+    fn test_duplicate_file() {
+        let cue = parse_from_file("test/fixtures/duplicate_file.cue", true).unwrap();
+        assert_eq!(cue.files.len(), 2);
+        assert_eq!(cue.files[0], cue.files[1]);
+    }
+
+    #[test]
+    fn test_bad_index_lenient() {
+        let cue = parse_from_file("test/fixtures/bad_index.cue", false).unwrap();
+        assert_eq!(cue.files[0].tracks[0].indices.len(), 0);
+    }
+
+    #[test]
+    fn test_bad_index_strict() {
+        let cue = parse_from_file("test/fixtures/bad_index.cue", true);
+        assert!(cue.is_err());
+    }
+
+    #[test]
+    fn test_comments() {
+        let cue = parse_from_file("test/fixtures/comments.cue", true).unwrap();
+        assert_eq!(cue.comments.len(), 4);
+        assert_eq!(cue.files[0].comments.len(), 1);
+        assert_eq!(cue.files[0].tracks[0].comments.len(), 1);
+        assert_eq!(cue.files[0].tracks[1].comments.len(), 2);
+        assert_eq!(cue.files[0].tracks[1].comments[0], (
+            "TRACK".to_string(),
+            "2".to_string(),
+        ));
+        assert_eq!(cue.files[0].tracks[1].comments[1], (
+            "TRACK".to_string(),
+            "2.1".to_string(),
+        ));
+    }
+
+    #[test]
+    fn test_missing_file() {
+        let cue = parse_from_file("test/fixtures/missing.cue.missing", true);
+        assert!(cue.is_err());
     }
 }

@@ -23,4 +23,11 @@ mod tests {
         let expected = r#"lmao "i"cons"#;
         assert_eq!(actual, expected);
     }
+
+    #[test]
+    fn test_unescape_unescaped_string() {
+        let actual = unescape_string(r#"lmao "i"cons"#);
+        let expected = r#"lmao "i"cons"#;
+        assert_eq!(actual, expected);
+    }
 }
