@@ -1,10 +1,8 @@
 use itertools::Itertools;
+// use regex::Regex;
 
 use std::fs::File;
-use std::io::BufReader;
-use std::io::prelude::*;
-
-use std::borrow::Cow;
+use std::io::{BufRead, BufReader};
 
 #[derive(Clone, Debug, PartialEq)]
 enum Token {
@@ -19,7 +17,7 @@ enum Token {
 }
 
 #[derive(Clone, Debug)]
-struct Track {
+pub struct Track {
     no: String,
     format: String,
     title: Option<String>,
@@ -40,14 +38,16 @@ impl Track {
 }
 
 #[derive(Clone, Debug)]
-struct CueFile {
+pub struct CueFile {
+    file: String,
     format: String,
     tracks: Vec<Track>,
 }
 
 impl CueFile {
-    pub fn new(format: &str) -> Self {
+    pub fn new(file: &str, format: &str) -> Self {
         Self {
+            file: file.to_string(),
             tracks: Vec::new(),
             format: format.to_string(),
         }
@@ -55,7 +55,7 @@ impl CueFile {
 }
 
 #[derive(Clone, Debug)]
-struct Cue {
+pub struct Cue {
     files: Vec<CueFile>,
     title: Option<String>,
     performer: Option<String>,
@@ -73,15 +73,15 @@ impl Cue {
     }
 }
 
-// fn parse_from_file() -> Result<(), String> {
-//     let file = File::open("test.cue").map_err(|e| e.to_string())?;
-//     let mut buf_reader = BufReader::new(file);
-// }
+#[allow(dead_code)]
+pub fn parse_from_file(path: &str) -> Result<Cue, String> {
+    let file = File::open(path).map_err(|e| e.to_string())?;
+    let buf_reader = BufReader::new(file);
+    parse(Box::new(buf_reader))
+}
 
-fn parse() -> Result<(), String> {
-    let file = File::open("test.cue").map_err(|e| e.to_string())?;
-    let mut buf_reader = BufReader::new(file);
-
+#[allow(dead_code)]
+pub fn parse(buf_reader: Box<BufRead>) -> Result<Cue, String> {
     let mut cue = Cue::new();
 
     fn last_file(cue: &mut Cue) -> Option<&mut CueFile> {
@@ -92,15 +92,14 @@ fn parse() -> Result<(), String> {
         last_file(cue).and_then(|f| f.tracks.last_mut())
     }
 
-    for line in buf_reader.lines() {
+    for (i, line) in buf_reader.lines().enumerate() {
         if let Ok(l) = line {
             let token = tokenize_line(&l);
-            println!("{0:<60} {1:?}", l, token);
 
             match token {
                 Token::Rem(field, value) => cue.comments.push((field, value)),
                 Token::File(file, format) => {
-                    cue.files.push(CueFile::new(&format));
+                    cue.files.push(CueFile::new(&file, &format));
                 }
                 Token::Track(idx, mode) => {
                     if let Some(file) = last_file(&mut cue) {
@@ -127,16 +126,15 @@ fn parse() -> Result<(), String> {
                         track.indices.push((idx, time));
                     }
                 }
-                _ => println!("Did not parse line: {:?}", l),
+                _ => println!("Unknown token - did not parse line {}: {:?}", i + 1, l),
             }
         }
     }
 
-    println!("\ncue:\n{:#?}", cue);
-
-    Ok(())
+    Ok(cue)
 }
 
+#[allow(dead_code)]
 fn tokenize_line(line: &str) -> Token {
     let mut tokens = line.trim().split_whitespace();
 
@@ -170,13 +168,14 @@ fn tokenize_line(line: &str) -> Token {
             let time = tokens.next().unwrap().to_string();
             Token::Index(val, time)
         }
-        Some(other) => Token::Unknown(line.to_string()),
+        Some(_) => Token::Unknown(line.to_string()),
         _ => Token::None,
     }
 }
 
 #[test]
 fn check_string_between_quotes() {
-    parse();
+    let cue = parse_from_file("test.cue");
+    println!("{:#?}", cue);
     assert!(false);
 }

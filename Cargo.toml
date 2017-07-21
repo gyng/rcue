@@ -5,3 +5,4 @@ authors = ["Ng Guoyou <ng.guoyou@gmail.com>"]
 
 [dependencies]
 itertools = "0.6.1"
+regex = "0.2"
