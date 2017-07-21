@@ -8,7 +8,7 @@ FILE "My Bloody Valentine - Loveless.wav" WAVE
   TRACK 01 AUDIO
     TITLE "Only Shallow"
     PERFORMER "My Bloody Valentine"
-    PREGAP 00:01:00
+    PREGAP notatimestamp
     POSTGAP 00:02:00
     INDEX 01 00:00:00
   TRACK 02 AUDIO

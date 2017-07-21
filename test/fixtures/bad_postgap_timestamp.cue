@@ -9,7 +9,7 @@ FILE "My Bloody Valentine - Loveless.wav" WAVE
     TITLE "Only Shallow"
     PERFORMER "My Bloody Valentine"
     PREGAP 00:01:00
-    POSTGAP 00:02:00
+    POSTGAP notatimestamp
     INDEX 01 00:00:00
   TRACK 02 AUDIO
     TITLE "Loomer"

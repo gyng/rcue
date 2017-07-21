@@ -36,7 +36,6 @@ fn main() {
 
 * Significant indentation/context support
 * Serializer
-* time::Duration for timestamps
 * More complete documentation
 * Support for more commands
 * Run clippy on the project

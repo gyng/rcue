@@ -2,9 +2,10 @@ use itertools::Itertools;
 
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::time::Duration;
 
 use errors::CueError;
-use util::unescape_string;
+use util::{timestamp_to_duration, unescape_string};
 
 #[derive(Clone, Debug, PartialEq)]
 enum Token {
@@ -30,9 +31,9 @@ pub struct Track {
     pub format: String,
     pub title: Option<String>,
     pub performer: Option<String>,
-    pub indices: Vec<(String, String)>,
-    pub pregap: Option<String>,
-    pub postgap: Option<String>,
+    pub indices: Vec<(String, Duration)>,
+    pub pregap: Option<Duration>,
+    pub postgap: Option<Duration>,
     pub comments: Vec<(String, String)>,
     /// unhandled fields
     pub unknown: Vec<String>,
@@ -211,21 +212,33 @@ pub fn parse(buf_reader: Box<BufRead>, strict: bool) -> Result<Cue, CueError> {
                 }
                 Ok(Token::Index(idx, time)) => {
                     if let Some(track) = last_track(&mut cue) {
-                        track.indices.push((idx, time));
+                        if let Ok(duration) = timestamp_to_duration(&time) {
+                            track.indices.push((idx, duration));
+                        } else {
+                            fail_if_strict!(i, l, "bad INDEX timestamp");
+                        }
                     } else {
                         fail_if_strict!(i, l, "INDEX assigned to no track");
                     }
                 }
                 Ok(Token::Pregap(time)) => {
                     if last_track(&mut cue).is_some() {
-                        last_track(&mut cue).unwrap().pregap = Some(time);
+                        if let Ok(duration) = timestamp_to_duration(&time) {
+                            last_track(&mut cue).unwrap().pregap = Some(duration);
+                        } else {
+                            fail_if_strict!(i, l, "bad PREGAP timestamp");
+                        }
                     } else {
                         fail_if_strict!(i, l, "PREGAP assigned to no track");
                     }
                 }
                 Ok(Token::Postgap(time)) => {
                     if last_track(&mut cue).is_some() {
-                        last_track(&mut cue).unwrap().postgap = Some(time);
+                        if let Ok(duration) = timestamp_to_duration(&time) {
+                            last_track(&mut cue).unwrap().postgap = Some(duration);
+                        } else {
+                            fail_if_strict!(i, l, "bad PREGAP timestamp");
+                        }
                     } else {
                         fail_if_strict!(i, l, "POSTGAP assigned to no track");
                     }
@@ -325,6 +338,7 @@ fn tokenize_line(line: &str) -> Result<Token, CueError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     #[test]
     fn test_parsing_good_cue() {
@@ -362,7 +376,7 @@ mod tests {
         assert_eq!(cue.files[0].tracks[0].indices.len(), 1);
         assert_eq!(cue.files[0].tracks[0].indices[0], (
             "01".to_string(),
-            "00:00:00".to_string(),
+            Duration::new(0, 0),
         ));
     }
 
@@ -460,10 +474,46 @@ mod tests {
     }
 
     #[test]
+    fn test_bad_index_timestamp_lenient() {
+        let cue = parse_from_file("test/fixtures/bad_index_timestamp.cue", false).unwrap();
+        assert_eq!(cue.files[0].tracks[0].indices.len(), 0);
+    }
+
+    #[test]
+    fn test_bad_index_timestamp_strict() {
+        let cue = parse_from_file("test/fixtures/bad_index_timestamp.cue", true);
+        assert!(cue.is_err());
+    }
+
+    #[test]
     fn test_pregap_postgap() {
         let cue = parse_from_file("test/fixtures/pregap.cue", true).unwrap();
-        assert_eq!(cue.files[0].tracks[0].pregap, Some("00:00:05".to_string()));
-        assert_eq!(cue.files[0].tracks[0].postgap, Some("00:00:07".to_string()));
+        assert_eq!(cue.files[0].tracks[0].pregap, Some(Duration::new(1, 0)));
+        assert_eq!(cue.files[0].tracks[0].postgap, Some(Duration::new(2, 0)));
+    }
+
+    #[test]
+    fn test_bad_pregap_timestamp_strict() {
+        let cue = parse_from_file("test/fixtures/bad_pregap_timestamp.cue", true);
+        assert!(cue.is_err());
+    }
+
+    #[test]
+    fn test_bad_pregap_timestamp_lenient() {
+        let cue = parse_from_file("test/fixtures/bad_pregap_timestamp.cue", false).unwrap();
+        assert!(cue.files[0].tracks[0].pregap.is_none());
+    }
+
+    #[test]
+    fn test_bad_postgap_timestamp_strict() {
+        let cue = parse_from_file("test/fixtures/bad_postgap_timestamp.cue", true);
+        assert!(cue.is_err());
+    }
+
+    #[test]
+    fn test_bad_postgap_timestamp_lenient() {
+        let cue = parse_from_file("test/fixtures/bad_postgap_timestamp.cue", false).unwrap();
+        assert!(cue.files[0].tracks[0].postgap.is_none());
     }
 
     #[test]
@@ -512,7 +562,13 @@ mod tests {
         let cue = parse_from_file("test/fixtures/orphan_index.cue", false).unwrap();
         assert_eq!(cue.files[0].tracks.len(), 1);
         assert_eq!(cue.files[0].tracks[0].indices.len(), 1);
-        assert_eq!(cue.files[0].tracks[0].indices[0], ("01".to_string(), "04:17:52".to_string()));
+        assert_eq!(cue.files[0].tracks[0].indices[0], (
+            "01".to_string(),
+            Duration::new(
+                257,
+                693333333,
+            ),
+        ));
     }
 
     #[test]
