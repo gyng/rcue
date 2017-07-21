@@ -14,6 +14,7 @@ enum Token {
     File(String, String),
     Track(String, String),
     Index(String, String),
+    Pregap(String),
     Unknown(String),
     None,
 }
@@ -28,6 +29,7 @@ pub struct Track {
     pub title: Option<String>,
     pub performer: Option<String>,
     pub indices: Vec<(String, String)>,
+    pub pregap: Option<String>,
     pub comments: Vec<(String, String)>,
     /// unhandled fields
     pub unknown: Vec<String>,
@@ -41,6 +43,7 @@ impl Track {
             format: format.to_string(),
             title: None,
             performer: None,
+            pregap: None,
             indices: Vec::new(),
             comments: Vec::new(),
             unknown: Vec::new(),
@@ -189,6 +192,11 @@ pub fn parse(buf_reader: Box<BufRead>, strict: bool) -> Result<Cue, CueError> {
                         track.indices.push((idx, time));
                     }
                 }
+                Ok(Token::Pregap(time)) => {
+                    if last_track(&mut cue).is_some() {
+                        last_track(&mut cue).unwrap().pregap = Some(time);
+                    }
+                }
                 Ok(Token::Unknown(line)) => {
                     if strict {
                         println!(
@@ -261,6 +269,10 @@ fn tokenize_line(line: &str) -> Result<Token, CueError> {
                     let val = next_token!(tokens, "missing TRACK number");
                     let mode = next_token!(tokens, "missing TRACK mode");
                     Ok(Token::Track(val, mode))
+                }
+                "PREGAP" => {
+                    let val = next_token!(tokens, "missing PREGAP duration");
+                    Ok(Token::Pregap(val))
                 }
                 "INDEX" => {
                     let val = next_token!(tokens, "missing INDEX number");
@@ -415,6 +427,12 @@ mod tests {
     fn test_bad_index_strict() {
         let cue = parse_from_file("test/fixtures/bad_index.cue", true);
         assert!(cue.is_err());
+    }
+
+    #[test]
+    fn test_pregap() {
+        let cue = parse_from_file("test/fixtures/pregap.cue", true).unwrap();
+        assert_eq!(cue.files[0].tracks[0].pregap, Some("00:00:05".to_string()))
     }
 
     #[test]
