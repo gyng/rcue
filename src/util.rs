@@ -18,7 +18,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn unescape_string() {
+    fn test_unescape_string() {
         let actual = unescape_string(r#""lmao \"i\"cons""#);
         let expected = r#"lmao "i"cons"#;
         assert_eq!(actual, expected);
