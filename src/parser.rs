@@ -15,6 +15,7 @@ enum Token {
     Track(String, String),
     Index(String, String),
     Pregap(String),
+    Postgap(String),
     Unknown(String),
     None,
 }
@@ -30,6 +31,7 @@ pub struct Track {
     pub performer: Option<String>,
     pub indices: Vec<(String, String)>,
     pub pregap: Option<String>,
+    pub postgap: Option<String>,
     pub comments: Vec<(String, String)>,
     /// unhandled fields
     pub unknown: Vec<String>,
@@ -44,6 +46,7 @@ impl Track {
             title: None,
             performer: None,
             pregap: None,
+            postgap: None,
             indices: Vec::new(),
             comments: Vec::new(),
             unknown: Vec::new(),
@@ -197,6 +200,11 @@ pub fn parse(buf_reader: Box<BufRead>, strict: bool) -> Result<Cue, CueError> {
                         last_track(&mut cue).unwrap().pregap = Some(time);
                     }
                 }
+                Ok(Token::Postgap(time)) => {
+                    if last_track(&mut cue).is_some() {
+                        last_track(&mut cue).unwrap().postgap = Some(time);
+                    }
+                }
                 Ok(Token::Unknown(line)) => {
                     if strict {
                         println!(
@@ -273,6 +281,10 @@ fn tokenize_line(line: &str) -> Result<Token, CueError> {
                 "PREGAP" => {
                     let val = next_token!(tokens, "missing PREGAP duration");
                     Ok(Token::Pregap(val))
+                }
+                "POSTGAP" => {
+                    let val = next_token!(tokens, "missing POSTGAP duration");
+                    Ok(Token::Postgap(val))
                 }
                 "INDEX" => {
                     let val = next_token!(tokens, "missing INDEX number");
@@ -430,9 +442,10 @@ mod tests {
     }
 
     #[test]
-    fn test_pregap() {
+    fn test_pregap_postgap() {
         let cue = parse_from_file("test/fixtures/pregap.cue", true).unwrap();
-        assert_eq!(cue.files[0].tracks[0].pregap, Some("00:00:05".to_string()))
+        assert_eq!(cue.files[0].tracks[0].pregap, Some("00:00:05".to_string()));
+        assert_eq!(cue.files[0].tracks[0].postgap, Some("00:00:07".to_string()));
     }
 
     #[test]
