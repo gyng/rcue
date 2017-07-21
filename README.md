@@ -4,7 +4,7 @@
 
 Simple CUE sheet reader for Rust. Compiles on stable.
 
-This library reads some CUE files fine, but is missing one important feature. Right now, indentation is treated as insignificant.
+This library reads some CUE files fine, but is missing one important feature. Right now, indentation is treated as insignificant (= no proper contextual support).
 
 For example, if `REM` fields appear after a `TRACK` field (but are indented to the `FILE`'s level, it will be wrongly assigned to the `TRACK` instead.
 
@@ -35,7 +35,9 @@ fn main() {
 ## TODO
 
 * Stricter strict mode
-* (Significant indentation) support
+* Significant indentation/context support
 * Serializer
 * time::Duration for timestamps
 * More complete documentation
+* Support for more commands
+* Run clippy on the project

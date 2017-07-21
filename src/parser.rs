@@ -9,6 +9,7 @@ use util::unescape_string;
 #[derive(Clone, Debug, PartialEq)]
 enum Token {
     Rem(String, String),
+    Catalog(String),
     Performer(String),
     Title(String),
     File(String, String),
@@ -83,6 +84,7 @@ pub struct Cue {
     pub files: Vec<CueFile>,
     pub title: Option<String>,
     pub performer: Option<String>,
+    pub catalog: Option<String>,
     pub comments: Vec<(String, String)>, // are REM fields unique?
     pub unknown: Vec<String>,
 }
@@ -94,6 +96,7 @@ impl Cue {
             files: Vec::new(),
             title: None,
             performer: None,
+            catalog: None,
             comments: Vec::new(),
             unknown: Vec::new(),
         }
@@ -205,6 +208,9 @@ pub fn parse(buf_reader: Box<BufRead>, strict: bool) -> Result<Cue, CueError> {
                         last_track(&mut cue).unwrap().postgap = Some(time);
                     }
                 }
+                Ok(Token::Catalog(id)) => {
+                    cue.catalog = Some(id);
+                }
                 Ok(Token::Unknown(line)) => {
                     if strict {
                         println!(
@@ -258,6 +264,10 @@ fn tokenize_line(line: &str) -> Result<Token, CueError> {
                     let key = next_token!(tokens, "missing REM key");
                     let val = unescape_string(&tokens.join(" "));
                     Ok(Token::Rem(key, val))
+                }
+                "CATALOG" => {
+                    let val = unescape_string(&tokens.join(" "));
+                    Ok(Token::Catalog(val))
                 }
                 "TITLE" => {
                     let val = unescape_string(&tokens.join(" "));
@@ -446,6 +456,12 @@ mod tests {
         let cue = parse_from_file("test/fixtures/pregap.cue", true).unwrap();
         assert_eq!(cue.files[0].tracks[0].pregap, Some("00:00:05".to_string()));
         assert_eq!(cue.files[0].tracks[0].postgap, Some("00:00:07".to_string()));
+    }
+
+    #[test]
+    fn test_catalog() {
+        let cue = parse_from_file("test/fixtures/catalog.cue", true).unwrap();
+        assert_eq!(cue.catalog, Some("TESTCATALOG-ID 64".to_string()));
     }
 
     #[test]
