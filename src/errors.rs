@@ -43,3 +43,15 @@ impl From<io::Error> for CueError {
         CueError::Io(err)
     }
 }
+
+impl From<std::num::ParseFloatError> for CueError {
+    fn from(err: std::num::ParseFloatError) -> Self {
+        CueError::Parse(format!("invalid timestamp: {}", err))
+    }
+}
+
+impl From<std::num::ParseIntError> for CueError {
+    fn from(err: std::num::ParseIntError) -> Self {
+        CueError::Parse(format!("invalid timestamp: {}", err))
+    }
+}
