@@ -3,6 +3,10 @@ name = "rcue"
 version = "0.1.0"
 authors = ["Ng Guoyou <ng.guoyou@gmail.com>"]
 
+[lib]
+name = "rcue"
+path = "src/lib.rs"
+
 [dependencies]
 itertools = "0.6.1"
 regex = "0.2"
