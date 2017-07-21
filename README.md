@@ -31,3 +31,11 @@ fn main() {
     assert_eq!(cue.title, Some("マジコカタストロフィ".to_string()));
 }
 ```
+
+## TODO
+
+* Stricter strict mode
+* (Significant indentation) support
+* Serializer
+* time::Duration for timestamps
+* More complete documentation
