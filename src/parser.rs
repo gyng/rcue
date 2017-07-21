@@ -4,6 +4,8 @@ use itertools::Itertools;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
+use util::unescape_string;
+
 #[derive(Clone, Debug, PartialEq)]
 enum Token {
     Rem(String, String),
@@ -136,26 +138,27 @@ pub fn parse(buf_reader: Box<BufRead>) -> Result<Cue, String> {
 
 #[allow(dead_code)]
 fn tokenize_line(line: &str) -> Token {
-    let mut tokens = line.trim().split_whitespace();
+     // Do not use split_whitespace to avoid string mutation as tokens are joined back using normal spaces
+    let mut tokens = line.trim().split(" ");
 
     match tokens.next() {
         Some("REM") => {
             let key = tokens.next().unwrap().to_string();
-            let val = tokens.join(" ");
+            let val = unescape_string(&tokens.join(" "));
             Token::Rem(key, val)
         }
         Some("TITLE") => {
-            let val = tokens.join(" ");
+            let val =  unescape_string(&tokens.join(" "));
             Token::Title(val)
         }
         Some("FILE") => {
             let l: Vec<_> = tokens.collect();
             let (&format, vals) = l.split_last().unwrap();
-            let val = vals.join(" ");
+            let val =  unescape_string(&vals.join(" "));
             Token::File(val, format.to_string())
         }
         Some("PERFORMER") => {
-            let val = tokens.join(" ");
+            let val =  unescape_string(&tokens.join(" "));
             Token::Performer(val)
         }
         Some("TRACK") => {
