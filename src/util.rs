@@ -6,6 +6,13 @@ use errors::CueError;
 
 /// Unescapes a string in a CUE field.
 ///
+/// Strings in a CUE field are delimited by double quotation marks (`"`).
+///
+/// ```text
+/// // Example line from a CUE
+/// TITLE "My \"Cute\" Song Title"
+/// ```
+///
 /// # Example
 ///
 /// ```
@@ -28,7 +35,8 @@ pub fn unescape_string(s: &str) -> String {
     escaped
 }
 
-/// Converts a CUE timestamp (MM:SS:FF) to a [Duration](std.time.Duration)
+/// Converts a CUE timestamp (MM:SS:FF) to a
+/// [Duration](https://doc.rust-lang.org/nightly/std/time/duration/struct.Duration.html)
 /// where each frame FF is `1 / 75` of a second.
 ///
 /// # Example
@@ -40,6 +48,10 @@ pub fn unescape_string(s: &str) -> String {
 /// let duration = timestamp_to_duration("99:99:99").unwrap();
 /// assert_eq!(duration, Duration::new(6040, 320000000));
 /// ```
+///
+/// # Failures
+///
+/// Fails if timestamp is not valid
 #[allow(dead_code)]
 pub fn timestamp_to_duration(s: &str) -> Result<Duration, CueError> {
     lazy_static! {

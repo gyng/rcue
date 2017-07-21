@@ -22,7 +22,7 @@ enum Token {
     None,
 }
 
-/// Represents a track in a [File]
+/// Represents a TRACK in a [`CueFile`](struct.CueFile.html).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Track {
     /// track number
@@ -31,16 +31,18 @@ pub struct Track {
     pub format: String,
     pub title: Option<String>,
     pub performer: Option<String>,
+    /// (index, timestamp)
     pub indices: Vec<(String, Duration)>,
     pub pregap: Option<Duration>,
     pub postgap: Option<Duration>,
+    /// (key, value)
     pub comments: Vec<(String, String)>,
-    /// unhandled fields
+    /// raw lines from unhandled fields
     pub unknown: Vec<String>,
 }
 
 impl Track {
-    /// Constructs a new Track.
+    /// Constructs a new [`Track`](struct.Track.html).
     pub fn new(no: &str, format: &str) -> Self {
         Self {
             no: no.to_string(),
@@ -56,7 +58,7 @@ impl Track {
     }
 }
 
-/// Represents a FILE in a CUE.
+/// Represents a FILE in a [`Cue`](struct.Cue.html).
 #[derive(Clone, Debug, PartialEq)]
 pub struct CueFile {
     /// path to file
@@ -64,6 +66,7 @@ pub struct CueFile {
     /// format (eg. WAVE, MP3)
     pub format: String,
     pub tracks: Vec<Track>,
+    /// (key, value)
     pub comments: Vec<(String, String)>,
 }
 
@@ -86,6 +89,7 @@ pub struct Cue {
     pub title: Option<String>,
     pub performer: Option<String>,
     pub catalog: Option<String>,
+    /// (key, value)
     pub comments: Vec<(String, String)>, // are REM fields unique?
     pub unknown: Vec<String>,
 }
@@ -104,11 +108,11 @@ impl Cue {
     }
 }
 
-/// Parses a CUE file at `path` into a `Cue` struct.
+/// Parses a CUE file at `path` into a [`Cue`](struct.Cue.html) struct.
 ///
-/// Strict mode will return `CueError` if invalid fields or extra lines are detected.
+/// Strict mode (`strict: true`) will return a [`CueError`](../errors/enum.CueError.html) if invalid fields or extra lines are detected.
 /// When not in strict mode, bad lines and fields will be skipped, and unknown
-/// fields will be stored in cue.unknown.
+/// fields will be stored in [`Cue.unknown`](struct.Cue.html).
 ///
 /// # Example
 ///
@@ -118,6 +122,10 @@ impl Cue {
 /// let cue = parse_from_file("test/fixtures/unicode.cue", true).unwrap();
 /// assert_eq!(cue.title, Some("マジコカタストロフィ".to_string()));
 /// ```
+///
+/// # Failures
+///
+/// Fails if the CUE file can not be parsed from the file.
 #[allow(dead_code)]
 pub fn parse_from_file(path: &str, strict: bool) -> Result<Cue, CueError> {
     let file = File::open(path)?;
@@ -125,11 +133,11 @@ pub fn parse_from_file(path: &str, strict: bool) -> Result<Cue, CueError> {
     parse(Box::new(buf_reader), strict)
 }
 
-/// Parses a `BufRead` into a `Cue` struct.
+/// Parses a [`BufRead`](https://doc.rust-lang.org/std/io/trait.BufRead.html) into a [`Cue`](struct.Cue.html) struct.
 ///
-/// Strict mode will return `CueError` if invalid fields or extra lines are detected.
+/// Strict mode will return [`CueError`](../errors/enum.CueError.html) if invalid fields or extra lines are detected.
 /// When not in strict mode, bad lines and fields will be skipped, and unknown
-/// fields will be stored in cue.unknown.
+/// fields will be stored in [`Cue.unknown`](struct.Cue.html).
 ///
 /// # Example
 ///
@@ -143,6 +151,10 @@ pub fn parse_from_file(path: &str, strict: bool) -> Result<Cue, CueError> {
 /// let cue = parse(Box::new(buf_reader), true).unwrap();
 /// assert_eq!(cue.title, Some("マジコカタストロフィ".to_string()));
 /// ```
+///
+/// # Failures
+///
+/// Fails if the CUE file can not be parsed.
 #[allow(dead_code)]
 pub fn parse(buf_reader: Box<BufRead>, strict: bool) -> Result<Cue, CueError> {
     macro_rules! fail_if_strict {
