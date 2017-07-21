@@ -1,5 +1,7 @@
 # rcue
 
+[![Build Status](https://travis-ci.org/gyng/rcue.svg?branch=master)](https://travis-ci.org/gyng/rcue)
+
 Simple CUE sheet reader for Rust. Compiles on stable.
 
 This library reads some CUE files fine, but is missing one important feature. Right now, indentation is treated as insignificant.
