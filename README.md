@@ -39,4 +39,3 @@ fn main() {
 * Significant indentation/context support
 * Serializer
 * Support for more commands
-* Run clippy on the project
