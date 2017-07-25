@@ -26,13 +26,10 @@ use errors::CueError;
 pub fn unescape_string(s: &str) -> String {
     lazy_static! {
         static ref START_END_DOUBLE_QUOTE: Regex = Regex::new(r#"(^"|"$)"#).unwrap();
-        static ref ESCAPED_DOUBLE_QUOTE: Regex = Regex::new(r#"\\""#).unwrap();
     }
 
     let escaped = START_END_DOUBLE_QUOTE.replace_all(s, "").to_string();
-    let escaped = ESCAPED_DOUBLE_QUOTE.replace_all(&escaped, "\"").to_string();
-
-    escaped
+    escaped.replace("\\\"", "\"")
 }
 
 /// Converts a CUE timestamp (MM:SS:FF) to a

@@ -83,7 +83,7 @@ impl CueFile {
 }
 
 /// Represents a CUE sheet.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Cue {
     pub files: Vec<CueFile>,
     pub title: Option<String>,
@@ -281,7 +281,7 @@ pub fn parse(buf_reader: Box<BufRead>, strict: bool) -> Result<Cue, CueError> {
 #[allow(dead_code)]
 fn tokenize_line(line: &str) -> Result<Token, CueError> {
     // Do not use split_whitespace to avoid string mutation as tokens are joined back using normal spaces
-    let mut tokens = line.trim().split(" ");
+    let mut tokens = line.trim().split(' ');
 
     macro_rules! next_token {
         ($tokens:ident, $error:expr) => (
