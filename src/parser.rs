@@ -129,8 +129,8 @@ impl Cue {
 #[allow(dead_code)]
 pub fn parse_from_file(path: &str, strict: bool) -> Result<Cue, CueError> {
     let file = File::open(path)?;
-    let buf_reader = BufReader::new(file);
-    parse(Box::new(buf_reader), strict)
+    let mut buf_reader = BufReader::new(file);
+    parse(&mut buf_reader, strict)
 }
 
 /// Parses a [`BufRead`](https://doc.rust-lang.org/std/io/trait.BufRead.html) into a [`Cue`](struct.Cue.html) struct.
@@ -147,8 +147,8 @@ pub fn parse_from_file(path: &str, strict: bool) -> Result<Cue, CueError> {
 /// use std::io::BufReader;
 ///
 /// let file = File::open("test/fixtures/unicode.cue").unwrap();
-/// let buf_reader = BufReader::new(file);
-/// let cue = parse(Box::new(buf_reader), true).unwrap();
+/// let mut buf_reader = BufReader::new(file);
+/// let cue = parse(&mut buf_reader, true).unwrap();
 /// assert_eq!(cue.title, Some("マジコカタストロフィ".to_string()));
 /// ```
 ///
@@ -156,7 +156,7 @@ pub fn parse_from_file(path: &str, strict: bool) -> Result<Cue, CueError> {
 ///
 /// Fails if the CUE file can not be parsed.
 #[allow(dead_code)]
-pub fn parse(buf_reader: Box<BufRead>, strict: bool) -> Result<Cue, CueError> {
+pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
     macro_rules! fail_if_strict {
         ($line_no:ident, $line:ident, $reason:expr) => (
             if strict {
