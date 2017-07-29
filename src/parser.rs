@@ -308,7 +308,9 @@ fn tokenize_line(line: &str) -> Result<Token, CueError> {
                 }
                 "FILE" => {
                     let l: Vec<_> = tokens.collect();
-                    let (&format, vals) = l.split_last().unwrap();
+                    let (&format, vals) = l.split_last().ok_or_else(|| {
+                        CueError::Parse("bare FILE token".to_string())
+                    })?;
                     let val = unescape_string(&vals.join(" "));
                     Ok(Token::File(val, format.to_string()))
                 }
@@ -613,5 +615,12 @@ mod tests {
     fn test_missing_file() {
         let cue = parse_from_file("test/fixtures/missing.cue.missing", true);
         assert!(cue.is_err());
+    }
+
+    #[test]
+    fn test_bare_file() {
+        use std::io;
+
+        assert!(parse(&mut io::Cursor::new(b"FILE"), true).is_err());
     }
 }
