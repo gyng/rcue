@@ -3,6 +3,8 @@ use itertools::Itertools;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::time::Duration;
+use std::env;
+use std::ffi::OsString;
 
 use errors::CueError;
 use util::{timestamp_to_duration, unescape_string};
@@ -157,15 +159,21 @@ pub fn parse_from_file(path: &str, strict: bool) -> Result<Cue, CueError> {
 /// Fails if the CUE file can not be parsed.
 #[allow(dead_code)]
 pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
+    let verbose = env::var_os("RCUE_LOG")
+        .map(|s| s == OsString::from("1"))
+        .unwrap_or(false);
+
     macro_rules! fail_if_strict {
         ($line_no:ident, $line:ident, $reason:expr) => (
             if strict {
-                println!(
-                    "Strict mode failure: did not parse line {}: {}\n\tReason: {:?}",
-                    $line_no + 1,
-                    $line,
-                    $reason
-                );
+                if verbose {
+                    println!(
+                        "Strict mode failure: did not parse line {}: {}\n\tReason: {:?}",
+                        $line_no + 1,
+                        $line,
+                        $reason
+                    );
+                }
                 return Err(CueError::Parse(format!("strict mode failure: {}", $reason)));
             }
         )
@@ -269,7 +277,9 @@ pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
                 }
                 _ => {
                     fail_if_strict!(i, l, "bad line");
-                    println!("Bad line - did not parse line {}: {:?}", i + 1, l);
+                    if verbose {
+                        println!("Bad line - did not parse line {}: {:?}", i + 1, l);
+                    }
                 }
             }
         }

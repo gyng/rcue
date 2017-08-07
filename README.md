@@ -34,6 +34,14 @@ fn main() {
 }
 ```
 
+## Verbose log information
+For verbose logging to STDOUT and details on skipped lines in lenient mode, run rcue with the environment variable `RCUE_LOG` set to `1`. For example:
+
+```
+# myapp.rs
+RCUE_LOG=1 cargo run
+```
+
 ## TODO
 
 * Significant indentation/context support
