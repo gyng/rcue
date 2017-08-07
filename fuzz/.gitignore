@@ -1,0 +1,6 @@
+target
+corpus/*
+!corpus/fuzz_parser
+corpus/fuzz_parser/*
+!corpus/fuzz_parser/valid_cue
+artifacts

@@ -42,6 +42,15 @@ For verbose logging to STDOUT and details on skipped lines in lenient mode, run 
 RCUE_LOG=1 cargo run
 ```
 
+## Fuzzing
+
+The parser fuzz test for rcue can be run using `cargo fuzz` in nightly.
+
+```
+cargo install cargo-fuzz -f
+cargo +nightly fuzz run fuzz_parser
+```
+
 ## TODO
 
 * Significant indentation/context support
