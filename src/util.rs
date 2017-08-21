@@ -75,7 +75,7 @@ pub fn timestamp_to_duration(s: &str) -> Result<Duration, CueError> {
     Ok(Duration::new(seconds, nanos))
 }
 
-/// Returns the next token from a [Chars](https://doc.rust-lang.org/std/str/struct.Chars.html).
+/// Returns the next token from a [`Chars`](https://doc.rust-lang.org/std/str/struct.Chars.html).
 /// This does *not* ignore leading whitespace.
 ///
 /// # Example
@@ -93,7 +93,8 @@ pub fn next_token(chars: &mut Chars) -> String {
     token
 }
 
-/// Returns the next bare (single-word) or quoted (single- or multi-word) [String]().
+/// Returns the next bare (single-word) or quoted (single- or multi-word)
+/// [`String`](https://doc.rust-lang.org/std/string/struct.String.html).
 /// This does *not* ignore leading whitespace.
 ///
 /// # Example
