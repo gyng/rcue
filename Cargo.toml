@@ -16,7 +16,3 @@ travis-ci = { repository = "gyng/rcue", branch = "master" }
 [lib]
 name = "rcue"
 path = "src/lib.rs"
-
-[dependencies]
-lazy_static = "0.2"
-regex = "0.2"

@@ -1,5 +1,3 @@
-use regex::Regex;
-
 use std::str::Chars;
 use std::time::Duration;
 
@@ -24,12 +22,14 @@ use errors::CueError;
 /// assert_eq!(unescaped, expected);
 /// ```
 pub fn unescape_quotes(s: &str) -> String {
-    lazy_static! {
-        static ref START_END_DOUBLE_QUOTE: Regex = Regex::new(r#"(^"|"$)"#).unwrap();
+    let mut unescaped = s.replace("\\\"", "\"");
+
+    if unescaped.ends_with("\"") && unescaped.starts_with("\"") {
+        unescaped.pop();
+        unescaped.remove(0);
     }
 
-    let escaped = START_END_DOUBLE_QUOTE.replace_all(s, "").to_string();
-    escaped.replace("\\\"", "\"")
+    unescaped
 }
 
 /// Converts a CUE timestamp (MM:SS:FF) to a
@@ -51,21 +51,15 @@ pub fn unescape_quotes(s: &str) -> String {
 /// Fails if timestamp is not valid
 #[allow(dead_code)]
 pub fn timestamp_to_duration(s: &str) -> Result<Duration, CueError> {
-    lazy_static! {
-        static ref TIMESTAMP: Regex = Regex::new(r#"^(?P<m>\d\d):(?P<s>\d\d):(?P<f>\d\d)$"#).unwrap();
+    fn next_group(chars: &mut Chars) -> String {
+        chars.take_while(|c| *c != ':').collect::<String>()
     }
 
-    if !TIMESTAMP.is_match(s) {
-        return Err(CueError::Parse(format!("Invalid timestamp format {}", s)));
-    }
-
-    let captures = TIMESTAMP.captures(s).ok_or_else(|| {
-        CueError::Parse(format!("invalid timestamp format: {}", s))
-    })?;
-
-    let minutes = &captures["m"];
-    let seconds = &captures["s"];
-    let frames = &captures["f"]; // there are 75 frames to one second
+    let timestamp = s.to_string();
+    let mut iter = timestamp.chars();
+    let minutes: String = next_group(&mut iter);
+    let seconds: String = next_group(&mut iter);
+    let frames: String = iter.collect();
 
     let frame_seconds = frames.parse::<f64>()? / 75.0;
     let seconds = minutes.parse::<u64>()? * 60 + seconds.parse::<u64>()? +

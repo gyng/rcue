@@ -38,10 +38,6 @@
 //!
 //! [GitHub repository](https://github.com/gyng/rcue)
 
-extern crate regex;
-#[macro_use]
-extern crate lazy_static;
-
 pub mod errors;
 pub mod parser;
 pub mod util;
