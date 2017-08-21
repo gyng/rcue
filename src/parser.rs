@@ -13,6 +13,10 @@ use util::{timestamp_to_duration, unescape_string};
 enum Token {
     Rem(String, String),
     Catalog(String),
+    CdTextFile(String),
+    Flags(Vec<String>),
+    Isrc(String),
+    Songwriter(String),
     Performer(String),
     Title(String),
     File(String, String),
@@ -35,10 +39,22 @@ pub struct Track {
     pub performer: Option<String>,
     /// (index, timestamp)
     pub indices: Vec<(String, Duration)>,
+    /// pregap of the track in `Duration`, converted from frames (75 frames = 1s)
     pub pregap: Option<Duration>,
+    /// postgap of the track in `Duration`, converted from frames (75 frames = 1s)
     pub postgap: Option<Duration>,
     /// (key, value)
     pub comments: Vec<(String, String)>,
+    /// International Standard Recording Code (CCOOOYYSSSSS)
+    ///
+    /// C: Country code (uppercase alphanumeric)
+    /// O: Owner code (uppercase alphanumeric)
+    /// Y: Year (numeric)
+    /// S: Serial number (numeric)
+    pub isrc: Option<String>,
+    /// Track special sub-code flags (DCP, 4CH, PRE, SCMS)
+    pub flags: Vec<String>,
+    pub songwriter: Option<String>,
     /// raw lines from unhandled fields
     pub unknown: Vec<String>,
 }
@@ -47,6 +63,7 @@ impl Track {
     /// Constructs a new [`Track`](struct.Track.html).
     pub fn new(no: &str, format: &str) -> Self {
         Self {
+            songwriter: None,
             no: no.to_string(),
             format: format.to_string(),
             title: None,
@@ -56,6 +73,8 @@ impl Track {
             indices: Vec::new(),
             comments: Vec::new(),
             unknown: Vec::new(),
+            flags: Vec::new(),
+            isrc: None,
         }
     }
 }
@@ -90,6 +109,10 @@ pub struct Cue {
     pub files: Vec<CueFile>,
     pub title: Option<String>,
     pub performer: Option<String>,
+    pub songwriter: Option<String>,
+    /// filename containing the CD-Text metadata of the disc
+    pub cd_text_file: Option<String>,
+    /// Media Catalog Number (13 decimal digits)
     pub catalog: Option<String>,
     /// (key, value)
     pub comments: Vec<(String, String)>, // are REM fields unique?
@@ -101,6 +124,8 @@ impl Cue {
     pub fn new() -> Self {
         Self {
             files: Vec::new(),
+            songwriter: None,
+            cd_text_file: None,
             title: None,
             performer: None,
             catalog: None,
@@ -194,6 +219,23 @@ pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
             let token = tokenize_line(&l);
 
             match token {
+                Ok(Token::CdTextFile(path)) => {
+                    cue.cd_text_file = Some(path);
+                }
+                Ok(Token::Flags(flags)) => {
+                    if last_track(&mut cue).is_some() {
+                        last_track(&mut cue).unwrap().flags = flags;
+                    } else {
+                        fail_if_strict!(i, l, "FLAG assigned to no TRACK");
+                    }
+                }
+                Ok(Token::Isrc(isrc)) => {
+                    if last_track(&mut cue).is_some() {
+                        last_track(&mut cue).unwrap().isrc = Some(isrc);
+                    } else {
+                        fail_if_strict!(i, l, "ISRC assigned to no TRACK");
+                    }
+                }
                 Ok(Token::Rem(field, value)) => {
                     let comment = (field, value);
 
@@ -228,6 +270,13 @@ pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
                         last_track(&mut cue).unwrap().performer = Some(performer);
                     } else {
                         cue.performer = Some(performer);
+                    }
+                }
+                Ok(Token::Songwriter(songwriter)) => {
+                    if last_track(&mut cue).is_some() {
+                        last_track(&mut cue).unwrap().songwriter = Some(songwriter);
+                    } else {
+                        cue.songwriter = Some(songwriter);
                     }
                 }
                 Ok(Token::Index(idx, time)) => {
@@ -312,6 +361,10 @@ fn tokenize_line(line: &str) -> Result<Token, CueError> {
                     let val = unescape_string(&tokens.join(" "));
                     Ok(Token::Catalog(val))
                 }
+                "CDTEXTFILE" => {
+                    let val = unescape_string(&tokens.join(" "));
+                    Ok(Token::CdTextFile(val))
+                }
                 "TITLE" => {
                     let val = unescape_string(&tokens.join(" "));
                     Ok(Token::Title(val))
@@ -324,9 +377,21 @@ fn tokenize_line(line: &str) -> Result<Token, CueError> {
                     let val = unescape_string(&vals.join(" "));
                     Ok(Token::File(val, format.to_string()))
                 }
+                "FLAGS" => {
+                    let flags: Vec<String> = tokens.map(|t| t.to_string()).collect();
+                    Ok(Token::Flags(flags))
+                }
+                "ISRC" => {
+                    let val = next_token!(tokens, "missing ISRC value");
+                    Ok(Token::Isrc(val))
+                }
                 "PERFORMER" => {
                     let val = unescape_string(&tokens.join(" "));
                     Ok(Token::Performer(val))
+                }
+                "SONGWRITER" => {
+                    let val = unescape_string(&tokens.join(" "));
+                    Ok(Token::Songwriter(val))
                 }
                 "TRACK" => {
                     let val = next_token!(tokens, "missing TRACK number");
@@ -382,26 +447,26 @@ mod tests {
             "ExactAudioCopy v0.95b4".to_string(),
         ));
         assert_eq!(cue.performer, Some("My Bloody Valentine".to_string()));
+        assert_eq!(cue.songwriter, Some("foobar".to_string()));
         assert_eq!(cue.title, Some("Loveless".to_string()));
+        assert_eq!(cue.cd_text_file, Some("./cdtextfile".to_string()));
+
         assert_eq!(cue.files.len(), 1);
-        assert_eq!(cue.files[0].file, "My Bloody Valentine - Loveless.wav");
-        assert_eq!(cue.files[0].format, "WAVE");
-        assert_eq!(cue.files[0].tracks.len(), 2);
-        assert_eq!(cue.files[0].tracks[0].no, "01".to_string());
-        assert_eq!(cue.files[0].tracks[0].format, "AUDIO".to_string());
-        assert_eq!(
-            cue.files[0].tracks[0].title,
-            Some("Only Shallow".to_string())
-        );
-        assert_eq!(
-            cue.files[0].tracks[0].performer,
-            Some("My Bloody Valentine".to_string())
-        );
-        assert_eq!(cue.files[0].tracks[0].indices.len(), 1);
-        assert_eq!(cue.files[0].tracks[0].indices[0], (
-            "01".to_string(),
-            Duration::new(0, 0),
-        ));
+        let ref file = cue.files[0];
+        assert_eq!(file.file, "My Bloody Valentine - Loveless.wav");
+        assert_eq!(file.format, "WAVE");
+
+        assert_eq!(file.tracks.len(), 2);
+        let ref track = file.tracks[0];
+        assert_eq!(track.no, "01".to_string());
+        assert_eq!(track.format, "AUDIO".to_string());
+        assert_eq!(track.songwriter, Some("barbaz bax".to_string()));
+        assert_eq!(track.title, Some("Only Shallow".to_string()));
+        assert_eq!(track.performer, Some("My Bloody Valentine".to_string()));
+        assert_eq!(track.indices.len(), 1);
+        assert_eq!(track.indices[0], ("01".to_string(), Duration::new(0, 0)));
+        assert_eq!(track.isrc, Some("USRC17609839".to_string()));
+        assert_eq!(track.flags, vec!("DCP", "4CH", "PRE", "SCMS"));
     }
 
     #[test]
