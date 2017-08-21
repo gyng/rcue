@@ -35,7 +35,9 @@ pub struct Track {
     pub no: String,
     /// track format (eg. AUDIO)
     pub format: String,
+    /// title for the track
     pub title: Option<String>,
+    /// performer for the track
     pub performer: Option<String>,
     /// (index, timestamp)
     pub indices: Vec<(String, Duration)>,
@@ -52,8 +54,9 @@ pub struct Track {
     /// Y: Year (numeric)
     /// S: Serial number (numeric)
     pub isrc: Option<String>,
-    /// Track special sub-code flags (DCP, 4CH, PRE, SCMS)
+    /// track special sub-code flags (DCP, 4CH, PRE, SCMS)
     pub flags: Vec<String>,
+    /// songwriter for the track
     pub songwriter: Option<String>,
     /// raw lines from unhandled fields
     pub unknown: Vec<String>,
@@ -84,8 +87,10 @@ impl Track {
 pub struct CueFile {
     /// path to file
     pub file: String,
-    /// format (eg. WAVE, MP3)
+    /// format (WAVE, MP3, AIFF, BINARY - little endian, MOTOROLA - big endian)
+    /// AIFF, WAVE, MP3 are assumed to be 44.1KHz, 16bit and stereo
     pub format: String,
+    /// tracks in this file
     pub tracks: Vec<Track>,
     /// (key, value)
     pub comments: Vec<(String, String)>,

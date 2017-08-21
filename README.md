@@ -56,8 +56,19 @@ cargo install cargo-fuzz -f
 cargo +nightly fuzz run fuzz_parser
 ```
 
+## Clippy
+
+Run clippy using
+
+```
+rustup install nightly # if not installed
+rustup update nightly
+cargo +nightly install clippy --force # --force to update
+rustup run nightly cargo clippy
+```
+
 ## TODO
 
 * Significant indentation/context support
 * Serializer
-* Support for more commands
+* Clean up parsing
