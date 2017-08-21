@@ -109,16 +109,21 @@ impl CueFile {
 /// Represents a CUE sheet.
 #[derive(Clone, Debug, Default)]
 pub struct Cue {
+    /// path to the data used for the following TRACK commands
     pub files: Vec<CueFile>,
+    /// title for the entire disc
     pub title: Option<String>,
+    /// performer for the entire disc
     pub performer: Option<String>,
+    /// songwriter for the entire disc
     pub songwriter: Option<String>,
     /// filename containing the CD-Text metadata of the disc
     pub cd_text_file: Option<String>,
-    /// Media Catalog Number (13 decimal digits)
+    /// media catalog number (13 decimal digits)
     pub catalog: Option<String>,
     /// (key, value)
     pub comments: Vec<(String, String)>, // are REM fields unique?
+    /// unparsed lines
     pub unknown: Vec<String>,
 }
 

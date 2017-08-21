@@ -1,3 +1,10 @@
+#![deny(missing_docs,
+        missing_debug_implementations, missing_copy_implementations,
+        trivial_casts, trivial_numeric_casts,
+        unsafe_code,
+        unstable_features,
+        unused_import_braces, unused_qualifications)]
+
 //! rcue is a simple CUE sheet reader.
 //!
 //! This library reads some CUE files fine, but is missing one important feature.
@@ -38,6 +45,9 @@
 //!
 //! [GitHub repository](https://github.com/gyng/rcue)
 
+/// rcue errors module
 pub mod errors;
+/// rcue parser implementation
 pub mod parser;
+/// rcue utility functions
 pub mod util;

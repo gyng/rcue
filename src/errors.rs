@@ -4,12 +4,16 @@ use std::fmt;
 use std::io;
 
 #[allow(dead_code)]
+/// Re-exported `Result` for rcue errors
 pub type Result<T> = std::result::Result<T, CueError>;
 
 #[allow(dead_code)]
 #[derive(Debug)]
+/// Represents a parsing error.
 pub enum CueError {
+    /// CUE parse error
     Parse(String),
+    /// IO error (file could not read)
     Io(io::Error),
 }
 

@@ -4,7 +4,7 @@
 
 [Documentation](https://gyng.github.io/rcue)
 
-Simple CUE sheet reader for Rust. Compiles on stable.
+Simple CUE sheet reader for Rust. Has no dependencies and compiles on stable.
 
 ## Usage
 
@@ -56,8 +56,9 @@ The current implementation has the following known limitations:
 
 * Escaped double quotation marks in strings `\"` are escaped into `"`.
 
-## Development
+Consider [leoschwarz/cue_sheet](https://github.com/leoschwarz/cue_sheet) if this implementation is unsuitable for your use case.
 
+## Development
 
 ### Verbose log information
 For verbose logging to STDOUT and details on skipped lines in lenient mode, run rcue with the environment variable `RCUE_LOG` set to `1`. For example:
