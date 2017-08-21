@@ -114,7 +114,6 @@ pub fn next_string(chars: &mut Chars, error: &str) -> Result<String, CueError> {
         let string = chars
             .take_while(|c| {
                 if !escaped && *c == '\\' {
-                    println!("turning on escape");
                     escaped = true;
                     return true;
                 }
