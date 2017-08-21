@@ -31,6 +31,11 @@ use rcue::parser::parse_from_file;
 fn main() {
     let cue = parse_from_file("test/fixtures/unicode.cue", true).unwrap();
     assert_eq!(cue.title, Some("マジコカタストロフィ".to_string()));
+
+    let file = std::fs::File::open("test/fixtures/unicode.cue").unwrap();
+    let mut buf_reader = std::io::BufReader::new(file);
+    let cue = parse(&mut buf_reader, true).unwrap();
+    assert_eq!(cue.title, Some("マジコカタストロフィ".to_string()));
 }
 ```
 
