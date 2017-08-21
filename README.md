@@ -6,10 +6,6 @@
 
 Simple CUE sheet reader for Rust. Compiles on stable.
 
-This library reads some CUE files fine, but is missing one important feature. Right now, indentation is treated as insignificant (= no proper contextual support).
-
-For example, if `REM` fields appear after a `TRACK` field (but are indented to the `FILE`'s level, it will be wrongly assigned to the `TRACK` instead.
-
 ## Usage
 
 See [generated documentation](https://gyng.github.io/rcue) or tests in [`parser.rs`](src/parser.rs) for usage and some examples.
@@ -39,7 +35,31 @@ fn main() {
 }
 ```
 
-## Verbose log information
+## Limitations and notes
+
+The current implementation has the following known limitations:
+
+* Indentation is treated as insignificant (= no proper contextual support). For example, if `REM` fields appear after a `TRACK` field (but are indented to the `FILE`'s level, it will be wrongly assigned to the `TRACK` instead.
+
+  ```cue
+  FILE "audio.wav" WAVE
+      TRACK 01 AUDIO
+          TITLE "track1"
+  REM DISCID 860B640B ← This is wrongly(?) assigned to the TRACK
+  ```
+
+* Extraneous whitespace between fields causes parsing to fail.
+
+  ```cue
+  REM COMMENT           "A lot of extra spaces"
+  ```
+
+* Escaped double quotation marks in strings `\"` are escaped into `"`.
+
+## Development
+
+
+### Verbose log information
 For verbose logging to STDOUT and details on skipped lines in lenient mode, run rcue with the environment variable `RCUE_LOG` set to `1`. For example:
 
 ```
@@ -47,7 +67,7 @@ For verbose logging to STDOUT and details on skipped lines in lenient mode, run 
 RCUE_LOG=1 cargo run
 ```
 
-## Fuzzing
+### Fuzzing
 
 The parser fuzz test for rcue can be run using `cargo fuzz` in nightly.
 
@@ -56,7 +76,7 @@ cargo install cargo-fuzz -f
 cargo +nightly fuzz run fuzz_parser
 ```
 
-## Clippy
+### Clippy
 
 Run clippy using
 
