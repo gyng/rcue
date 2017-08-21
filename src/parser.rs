@@ -10,7 +10,7 @@ use errors::CueError;
 use util::{timestamp_to_duration, unescape_string};
 
 #[derive(Clone, Debug, PartialEq)]
-enum Token {
+enum Command {
     Rem(String, String),
     Catalog(String),
     CdTextFile(String),
@@ -219,24 +219,24 @@ pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
             let token = tokenize_line(&l);
 
             match token {
-                Ok(Token::CdTextFile(path)) => {
+                Ok(Command::CdTextFile(path)) => {
                     cue.cd_text_file = Some(path);
                 }
-                Ok(Token::Flags(flags)) => {
+                Ok(Command::Flags(flags)) => {
                     if last_track(&mut cue).is_some() {
                         last_track(&mut cue).unwrap().flags = flags;
                     } else {
                         fail_if_strict!(i, l, "FLAG assigned to no TRACK");
                     }
                 }
-                Ok(Token::Isrc(isrc)) => {
+                Ok(Command::Isrc(isrc)) => {
                     if last_track(&mut cue).is_some() {
                         last_track(&mut cue).unwrap().isrc = Some(isrc);
                     } else {
                         fail_if_strict!(i, l, "ISRC assigned to no TRACK");
                     }
                 }
-                Ok(Token::Rem(field, value)) => {
+                Ok(Command::Rem(field, value)) => {
                     let comment = (field, value);
 
                     if last_track(&mut cue).is_some() {
@@ -247,24 +247,24 @@ pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
                         cue.comments.push(comment);
                     }
                 }
-                Ok(Token::File(file, format)) => {
+                Ok(Command::File(file, format)) => {
                     cue.files.push(CueFile::new(&file, &format));
                 }
-                Ok(Token::Track(idx, mode)) => {
+                Ok(Command::Track(idx, mode)) => {
                     if let Some(file) = last_file(&mut cue) {
                         file.tracks.push(Track::new(&idx, &mode));
                     } else {
                         fail_if_strict!(i, l, "TRACK assigned to no FILE");
                     }
                 }
-                Ok(Token::Title(title)) => {
+                Ok(Command::Title(title)) => {
                     if last_track(&mut cue).is_some() {
                         last_track(&mut cue).unwrap().title = Some(title);
                     } else {
                         cue.title = Some(title)
                     }
                 }
-                Ok(Token::Performer(performer)) => {
+                Ok(Command::Performer(performer)) => {
                     // this double check might be able to go away under non-lexical lifetimes
                     if last_track(&mut cue).is_some() {
                         last_track(&mut cue).unwrap().performer = Some(performer);
@@ -272,14 +272,14 @@ pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
                         cue.performer = Some(performer);
                     }
                 }
-                Ok(Token::Songwriter(songwriter)) => {
+                Ok(Command::Songwriter(songwriter)) => {
                     if last_track(&mut cue).is_some() {
                         last_track(&mut cue).unwrap().songwriter = Some(songwriter);
                     } else {
                         cue.songwriter = Some(songwriter);
                     }
                 }
-                Ok(Token::Index(idx, time)) => {
+                Ok(Command::Index(idx, time)) => {
                     if let Some(track) = last_track(&mut cue) {
                         if let Ok(duration) = timestamp_to_duration(&time) {
                             track.indices.push((idx, duration));
@@ -290,7 +290,7 @@ pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
                         fail_if_strict!(i, l, "INDEX assigned to no track");
                     }
                 }
-                Ok(Token::Pregap(time)) => {
+                Ok(Command::Pregap(time)) => {
                     if last_track(&mut cue).is_some() {
                         if let Ok(duration) = timestamp_to_duration(&time) {
                             last_track(&mut cue).unwrap().pregap = Some(duration);
@@ -301,7 +301,7 @@ pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
                         fail_if_strict!(i, l, "PREGAP assigned to no track");
                     }
                 }
-                Ok(Token::Postgap(time)) => {
+                Ok(Command::Postgap(time)) => {
                     if last_track(&mut cue).is_some() {
                         if let Ok(duration) = timestamp_to_duration(&time) {
                             last_track(&mut cue).unwrap().postgap = Some(duration);
@@ -312,10 +312,10 @@ pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
                         fail_if_strict!(i, l, "POSTGAP assigned to no track");
                     }
                 }
-                Ok(Token::Catalog(id)) => {
+                Ok(Command::Catalog(id)) => {
                     cue.catalog = Some(id);
                 }
-                Ok(Token::Unknown(line)) => {
+                Ok(Command::Unknown(line)) => {
                     fail_if_strict!(i, l, "unknown token");
 
                     if last_track(&mut cue).is_some() {
@@ -338,7 +338,7 @@ pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
 }
 
 #[allow(dead_code)]
-fn tokenize_line(line: &str) -> Result<Token, CueError> {
+fn tokenize_line(line: &str) -> Result<Command, CueError> {
     // Do not use split_whitespace to avoid string mutation as tokens are joined back using normal spaces
     let mut tokens = line.trim().split(' ');
 
@@ -355,19 +355,19 @@ fn tokenize_line(line: &str) -> Result<Token, CueError> {
                 "REM" => {
                     let key = next_token!(tokens, "missing REM key");
                     let val = unescape_string(&tokens.join(" "));
-                    Ok(Token::Rem(key, val))
+                    Ok(Command::Rem(key, val))
                 }
                 "CATALOG" => {
                     let val = unescape_string(&tokens.join(" "));
-                    Ok(Token::Catalog(val))
+                    Ok(Command::Catalog(val))
                 }
                 "CDTEXTFILE" => {
                     let val = unescape_string(&tokens.join(" "));
-                    Ok(Token::CdTextFile(val))
+                    Ok(Command::CdTextFile(val))
                 }
                 "TITLE" => {
                     let val = unescape_string(&tokens.join(" "));
-                    Ok(Token::Title(val))
+                    Ok(Command::Title(val))
                 }
                 "FILE" => {
                     let l: Vec<_> = tokens.collect();
@@ -375,52 +375,52 @@ fn tokenize_line(line: &str) -> Result<Token, CueError> {
                         CueError::Parse("bare FILE token".to_string())
                     })?;
                     let val = unescape_string(&vals.join(" "));
-                    Ok(Token::File(val, format.to_string()))
+                    Ok(Command::File(val, format.to_string()))
                 }
                 "FLAGS" => {
                     let flags: Vec<String> = tokens.map(|t| t.to_string()).collect();
-                    Ok(Token::Flags(flags))
+                    Ok(Command::Flags(flags))
                 }
                 "ISRC" => {
                     let val = next_token!(tokens, "missing ISRC value");
-                    Ok(Token::Isrc(val))
+                    Ok(Command::Isrc(val))
                 }
                 "PERFORMER" => {
                     let val = unescape_string(&tokens.join(" "));
-                    Ok(Token::Performer(val))
+                    Ok(Command::Performer(val))
                 }
                 "SONGWRITER" => {
                     let val = unescape_string(&tokens.join(" "));
-                    Ok(Token::Songwriter(val))
+                    Ok(Command::Songwriter(val))
                 }
                 "TRACK" => {
                     let val = next_token!(tokens, "missing TRACK number");
                     let mode = next_token!(tokens, "missing TRACK mode");
-                    Ok(Token::Track(val, mode))
+                    Ok(Command::Track(val, mode))
                 }
                 "PREGAP" => {
                     let val = next_token!(tokens, "missing PREGAP duration");
-                    Ok(Token::Pregap(val))
+                    Ok(Command::Pregap(val))
                 }
                 "POSTGAP" => {
                     let val = next_token!(tokens, "missing POSTGAP duration");
-                    Ok(Token::Postgap(val))
+                    Ok(Command::Postgap(val))
                 }
                 "INDEX" => {
                     let val = next_token!(tokens, "missing INDEX number");
                     let time = next_token!(tokens, "missing INDEX time");
-                    Ok(Token::Index(val, time))
+                    Ok(Command::Index(val, time))
                 }
                 _ => {
                     if t.is_empty() {
-                        Ok(Token::None)
+                        Ok(Command::None)
                     } else {
-                        Ok(Token::Unknown(line.to_string()))
+                        Ok(Command::Unknown(line.to_string()))
                     }
                 }
             }
         }
-        _ => Ok(Token::None),
+        _ => Ok(Command::None),
     }
 }
 
@@ -466,7 +466,7 @@ mod tests {
         assert_eq!(track.indices.len(), 1);
         assert_eq!(track.indices[0], ("01".to_string(), Duration::new(0, 0)));
         assert_eq!(track.isrc, Some("USRC17609839".to_string()));
-        assert_eq!(track.flags, vec!("DCP", "4CH", "PRE", "SCMS"));
+        assert_eq!(track.flags, vec!["DCP", "4CH", "PRE", "SCMS"]);
     }
 
     #[test]
