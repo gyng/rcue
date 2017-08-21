@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::time::Duration;
@@ -7,7 +5,7 @@ use std::env;
 use std::ffi::OsString;
 
 use errors::CueError;
-use util::{timestamp_to_duration, unescape_string};
+use util::{timestamp_to_duration, next_token, next_string, next_values};
 
 #[derive(Clone, Debug, PartialEq)]
 enum Command {
@@ -220,7 +218,7 @@ pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
     }
 
     for (i, line) in buf_reader.lines().enumerate() {
-        if let Ok(l) = line {
+        if let Ok(ref l) = line {
             let token = tokenize_line(&l);
 
             match token {
@@ -321,7 +319,7 @@ pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
                     cue.catalog = Some(id);
                 }
                 Ok(Command::Unknown(line)) => {
-                    fail_if_strict!(i, l, "unknown token");
+                    fail_if_strict!(i, l, &format!("unknown token -- {}", &line));
 
                     if last_track(&mut cue).is_some() {
                         last_track(&mut cue).unwrap().unknown.push(line);
@@ -330,7 +328,7 @@ pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
                     }
                 }
                 _ => {
-                    fail_if_strict!(i, l, "bad line");
+                    fail_if_strict!(i, l, &format!("bad line -- {:?}", &line));
                     if verbose {
                         println!("Bad line - did not parse line {}: {:?}", i + 1, l);
                     }
@@ -344,80 +342,77 @@ pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
 
 #[allow(dead_code)]
 fn tokenize_line(line: &str) -> Result<Command, CueError> {
-    // Do not use split_whitespace to avoid string mutation as tokens are joined back using normal spaces
-    let mut tokens = line.trim().split(' ');
+    let mut chars = line.trim().chars();
 
-    macro_rules! next_token {
-        ($tokens:ident, $error:expr) => (
-            tokens.next().ok_or(CueError::Parse($error.to_string()))?.to_string()
-        )
-    }
+    let command = next_token(&mut chars);
+    let command = if command.is_empty() {
+        None
+    } else {
+        Some(command)
+    };
 
-    match tokens.next() {
-        Some(t) => {
-            let uppercase = t.to_uppercase();
-            match uppercase.as_ref() {
+    match command {
+        Some(c) => {
+            match c.to_uppercase().as_ref() {
                 "REM" => {
-                    let key = next_token!(tokens, "missing REM key");
-                    let val = unescape_string(&tokens.join(" "));
+                    let key = next_token(&mut chars);
+                    let val = next_string(&mut chars, "missing REM value")?;
                     Ok(Command::Rem(key, val))
                 }
                 "CATALOG" => {
-                    let val = unescape_string(&tokens.join(" "));
+                    let val = next_string(&mut chars, "missing CATALOG value")?;
                     Ok(Command::Catalog(val))
                 }
                 "CDTEXTFILE" => {
-                    let val = unescape_string(&tokens.join(" "));
+                    let val = next_string(&mut chars, "missing CDTEXTFILE value")?;
                     Ok(Command::CdTextFile(val))
                 }
                 "TITLE" => {
-                    let val = unescape_string(&tokens.join(" "));
+                    let val = next_string(&mut chars, "missing TITLE value")?;
                     Ok(Command::Title(val))
                 }
                 "FILE" => {
-                    let l: Vec<_> = tokens.collect();
-                    let (&format, vals) = l.split_last().ok_or_else(|| {
-                        CueError::Parse("bare FILE token".to_string())
-                    })?;
-                    let val = unescape_string(&vals.join(" "));
-                    Ok(Command::File(val, format.to_string()))
+                    let path = next_string(&mut chars, "missing path for FILE")?;
+                    let format = next_token(&mut chars);
+                    Ok(Command::File(path, format))
                 }
                 "FLAGS" => {
-                    let flags: Vec<String> = tokens.map(|t| t.to_string()).collect();
+                    let flags = next_values(&mut chars);
                     Ok(Command::Flags(flags))
                 }
                 "ISRC" => {
-                    let val = next_token!(tokens, "missing ISRC value");
+                    let val = next_token(&mut chars);
                     Ok(Command::Isrc(val))
                 }
                 "PERFORMER" => {
-                    let val = unescape_string(&tokens.join(" "));
+                    let val = next_string(&mut chars, "missing PERFORMER value")?;
                     Ok(Command::Performer(val))
                 }
                 "SONGWRITER" => {
-                    let val = unescape_string(&tokens.join(" "));
+                    let val = next_string(&mut chars, "missing SONGWRITER value")?;
                     Ok(Command::Songwriter(val))
                 }
                 "TRACK" => {
-                    let val = next_token!(tokens, "missing TRACK number");
-                    let mode = next_token!(tokens, "missing TRACK mode");
+                    let val = next_token(&mut chars);
+                    let mode = next_token(&mut chars);
                     Ok(Command::Track(val, mode))
                 }
                 "PREGAP" => {
-                    let val = next_token!(tokens, "missing PREGAP duration");
+                    let val = next_token(&mut chars);
                     Ok(Command::Pregap(val))
                 }
                 "POSTGAP" => {
-                    let val = next_token!(tokens, "missing POSTGAP duration");
+                    let val = next_token(&mut chars);
                     Ok(Command::Postgap(val))
                 }
                 "INDEX" => {
-                    let val = next_token!(tokens, "missing INDEX number");
-                    let time = next_token!(tokens, "missing INDEX time");
+                    let val = next_token(&mut chars);
+                    let time = next_token(&mut chars);
                     Ok(Command::Index(val, time))
                 }
                 _ => {
-                    if t.is_empty() {
+                    let rest: String = chars.collect();
+                    if rest.is_empty() {
                         Ok(Command::None)
                     } else {
                         Ok(Command::Unknown(line.to_string()))

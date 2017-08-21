@@ -1,5 +1,6 @@
 use regex::Regex;
 
+use std::str::Chars;
 use std::time::Duration;
 
 use errors::CueError;
@@ -16,14 +17,13 @@ use errors::CueError;
 /// # Example
 ///
 /// ```
-/// use rcue::util::unescape_string;
+/// use rcue::util::unescape_quotes;
 ///
-/// let unescaped = unescape_string(r#""lmao \"i\"cons""#);
+/// let unescaped = unescape_quotes(r#""lmao \"i\"cons""#);
 /// let expected = r#"lmao "i"cons"#;
 /// assert_eq!(unescaped, expected);
 /// ```
-#[allow(dead_code)]
-pub fn unescape_string(s: &str) -> String {
+pub fn unescape_quotes(s: &str) -> String {
     lazy_static! {
         static ref START_END_DOUBLE_QUOTE: Regex = Regex::new(r#"(^"|"$)"#).unwrap();
     }
@@ -75,21 +75,111 @@ pub fn timestamp_to_duration(s: &str) -> Result<Duration, CueError> {
     Ok(Duration::new(seconds, nanos))
 }
 
+/// Returns the next token from a [Chars](https://doc.rust-lang.org/std/str/struct.Chars.html).
+/// This does *not* ignore leading whitespace.
+///
+/// # Example
+///
+/// ```
+/// use rcue::util::next_token;
+///
+/// let tokens = "a b c d".to_string();
+/// let mut chars = tokens.chars();
+/// assert_eq!(next_token(&mut chars), "a".to_string());
+/// assert_eq!(next_token(&mut chars), "b".to_string());
+/// ```
+pub fn next_token(chars: &mut Chars) -> String {
+    let token = chars.take_while(|c| !c.is_whitespace()).collect::<String>();
+    token
+}
+
+/// Returns the next bare (single-word) or quoted (single- or multi-word) [String]().
+/// This does *not* ignore leading whitespace.
+///
+/// # Example
+///
+/// ```
+/// use rcue::util::next_string;
+///
+/// let quotes = r#""quotation \"\" marks""#.to_string();
+/// let actual = next_string(&mut quotes.chars(), "").unwrap();
+/// let expected = r#"quotation "" marks"#;
+/// assert_eq!(actual, expected);
+/// ```
+///
+/// # Failures
+///
+/// Fails if no string can be parsed (eg. an unexpected EOL)
+#[allow(dead_code)]
+pub fn next_string(chars: &mut Chars, error: &str) -> Result<String, CueError> {
+    let first = chars.next().ok_or(CueError::Parse(error.to_string()))?;
+
+    if first == '"' {
+        let mut escaped = false;
+        let string = chars
+            .take_while(|c| {
+                if !escaped && *c == '\\' {
+                    println!("turning on escape");
+                    escaped = true;
+                    return true;
+                }
+
+                if escaped {
+                    escaped = false;
+                    return true;
+                }
+
+                *c != '"'
+            })
+            .collect::<String>();
+        let _next_space = chars.next().ok_or(CueError::Parse(
+            "Unexpected error: could not consume next space. This is likely a bug."
+                .to_string(),
+        ));
+
+        Ok(unescape_quotes(&string))
+    } else {
+        let string = first.to_string() + &next_token(chars);
+
+        Ok(unescape_quotes(&string))
+    }
+}
+
+/// Returns a list of values, split by whitespace.
+///
+/// # Example
+///
+/// ```
+/// use rcue::util::next_values;
+///
+/// let values = "a b".to_string();
+/// let mut iter = values.chars();
+/// let actual = next_values(&mut iter);
+/// let expected = vec!["a".to_string(), "b".to_string()];
+/// assert_eq!(actual, expected);
+/// ```
+#[allow(dead_code)]
+pub fn next_values(chars: &mut Chars) -> Vec<String> {
+    let string: String = chars.collect();
+    string.split_whitespace().map(|s| s.to_string()).collect()
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::time::Duration;
 
     #[test]
-    fn test_unescape_string() {
-        let actual = unescape_string(r#""lmao \"i\"cons""#);
+    fn test_unescape_quotes() {
+        let actual = unescape_quotes(r#""lmao \"i\"cons""#);
         let expected = r#"lmao "i"cons"#;
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_unescape_unescaped_string() {
-        let actual = unescape_string(r#"lmao "i"cons"#);
+        let actual = unescape_quotes(r#"lmao "i"cons"#);
         let expected = r#"lmao "i"cons"#;
         assert_eq!(actual, expected);
     }
@@ -131,5 +221,40 @@ mod tests {
         assert!(timestamp_to_duration("00:00:00 ").is_err());
         assert!(timestamp_to_duration(" 00:00:00 ").is_err());
         assert!(timestamp_to_duration("P0003-06-04T12:30:05").is_err());
+    }
+
+    #[test]
+    fn test_next_string_quotation_marks() {
+        let quotes = r#""quotation \"\" marks""#.to_string();
+        let actual = next_string(&mut quotes.chars(), "").unwrap();
+        let expected = r#"quotation "" marks"#;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_next_string_single_quotation_marks() {
+        let quotes_single = r#"this\"isfine"#.to_string();
+        let actual = next_string(&mut quotes_single.chars(), "").unwrap();
+        let expected = r#"this"isfine"#;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_next_tokens() {
+        let tokens = "a b c d".to_string();
+        let mut iter = tokens.chars();
+        assert_eq!(next_token(&mut iter), "a".to_string());
+        assert_eq!(next_token(&mut iter), "b".to_string());
+        assert_eq!(next_token(&mut iter), "c".to_string());
+        assert_eq!(next_token(&mut iter), "d".to_string());
+    }
+
+    #[test]
+    fn test_next_values() {
+        let values = "a b".to_string();
+        let mut iter = values.chars();
+        let actual = next_values(&mut iter);
+        let expected = vec!["a".to_string(), "b".to_string()];
+        assert_eq!(actual, expected);
     }
 }

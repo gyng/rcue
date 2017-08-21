@@ -18,6 +18,5 @@ name = "rcue"
 path = "src/lib.rs"
 
 [dependencies]
-itertools = "0.6.1"
 lazy_static = "0.2"
 regex = "0.2"

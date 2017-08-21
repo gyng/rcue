@@ -2,7 +2,7 @@ REM GENRE Alternative
 REM DATE 1991
 REM DISCID 860B640B
 REM COMMENT "ExactAudioCopy v0.95b4"
-CATALOG TESTCATALOG-ID 64
+CATALOG "TESTCATALOG-ID 64"
 PERFORMER "My Bloody Valentine"
 TITLE "Loveless"
 FILE "My Bloody Valentine - Loveless.wav" WAVE
