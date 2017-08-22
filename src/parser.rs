@@ -88,7 +88,7 @@ pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
 
     for (i, line) in buf_reader.lines().enumerate() {
         if let Ok(ref l) = line {
-            let token = tokenize_line(&l);
+            let token = tokenize_line(l);
 
             match token {
                 Ok(Command::CdTextFile(path)) => {

@@ -24,7 +24,7 @@ use errors::CueError;
 pub fn unescape_quotes(s: &str) -> String {
     let mut unescaped = s.replace("\\\"", "\"");
 
-    if unescaped.ends_with("\"") && unescaped.starts_with("\"") {
+    if unescaped.ends_with('\"') && unescaped.starts_with('\"') {
         unescaped.pop();
         unescaped.remove(0);
     }
@@ -64,7 +64,7 @@ pub fn timestamp_to_duration(s: &str) -> Result<Duration, CueError> {
     let frame_seconds = frames.parse::<f64>()? / 75.0;
     let seconds = minutes.parse::<u64>()? * 60 + seconds.parse::<u64>()? +
         frame_seconds.floor() as u64;
-    let nanos = (frame_seconds.fract() * 1000000000f64) as u32;
+    let nanos = (frame_seconds.fract() * 1_000_000_000f64) as u32;
 
     Ok(Duration::new(seconds, nanos))
 }
@@ -83,8 +83,7 @@ pub fn timestamp_to_duration(s: &str) -> Result<Duration, CueError> {
 /// assert_eq!(next_token(&mut chars), "b".to_string());
 /// ```
 pub fn next_token(chars: &mut Chars) -> String {
-    let token = chars.take_while(|c| !c.is_whitespace()).collect::<String>();
-    token
+    chars.take_while(|c| !c.is_whitespace()).collect::<String>()
 }
 
 /// Returns the next bare (single-word) or quoted (single- or multi-word)
