@@ -45,9 +45,11 @@
 //!
 //! [GitHub repository](https://github.com/gyng/rcue)
 
-/// rcue errors module
+/// Structs and types
+pub mod cue;
+/// Errors module
 pub mod errors;
-/// rcue parser implementation
+/// Parser implementation
 pub mod parser;
-/// rcue utility functions
+/// Utility functions
 pub mod util;
