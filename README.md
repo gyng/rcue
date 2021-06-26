@@ -1,7 +1,5 @@
 # rcue
 
-[![Build Status](https://travis-ci.org/gyng/rcue.svg?branch=master)](https://travis-ci.org/gyng/rcue)
-
 [Documentation](https://gyng.github.io/rcue)
 
 Simple CUE sheet reader for Rust. Has no dependencies and compiles on stable.
