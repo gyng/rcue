@@ -10,9 +10,6 @@ description = "Simple CUE sheet reader"
 categories = ["parsing"]
 keywords = ["cue"]
 
-[badges]
-travis-ci = { repository = "gyng/rcue", branch = "master" }
-
 [lib]
 name = "rcue"
 path = "src/lib.rs"
