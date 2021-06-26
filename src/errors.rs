@@ -27,17 +27,10 @@ impl fmt::Display for CueError {
 }
 
 impl error::Error for CueError {
-    fn description(&self) -> &str {
-        match *self {
-            CueError::Parse(ref token) => token,
-            CueError::Io(ref err) => err.description(),
-        }
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             CueError::Parse(ref _token) => None,
-            CueError::Io(ref err) => err.cause(),
+            CueError::Io(ref err) => err.source(),
         }
     }
 }

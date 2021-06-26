@@ -1,11 +1,10 @@
 use std::env;
-use std::ffi::OsString;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 use cue::{Command, Cue, CueFile, Track};
 use errors::CueError;
-use util::{timestamp_to_duration, next_token, next_string, next_values};
+use util::{next_string, next_token, next_values, timestamp_to_duration};
 
 /// Parses a CUE file at `path` into a [`Cue`](struct.Cue.html) struct.
 ///
@@ -55,13 +54,11 @@ pub fn parse_from_file(path: &str, strict: bool) -> Result<Cue, CueError> {
 ///
 /// Fails if the CUE file can not be parsed.
 #[allow(dead_code)]
-pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
-    let verbose = env::var_os("RCUE_LOG")
-        .map(|s| s == OsString::from("1"))
-        .unwrap_or(false);
+pub fn parse(buf_reader: &mut dyn BufRead, strict: bool) -> Result<Cue, CueError> {
+    let verbose = env::var_os("RCUE_LOG").map(|s| s == "1").unwrap_or(false);
 
     macro_rules! fail_if_strict {
-        ($line_no:ident, $line:ident, $reason:expr) => (
+        ($line_no:ident, $line:ident, $reason:expr) => {
             if strict {
                 if verbose {
                     println!(
@@ -73,7 +70,7 @@ pub fn parse(buf_reader: &mut BufRead, strict: bool) -> Result<Cue, CueError> {
                 }
                 return Err(CueError::Parse(format!("strict mode failure: {}", $reason)));
             }
-        )
+        };
     }
 
     let mut cue = Cue::new();
@@ -221,74 +218,72 @@ fn tokenize_line(line: &str) -> Result<Command, CueError> {
     };
 
     match command {
-        Some(c) => {
-            match c.to_uppercase().as_ref() {
-                "REM" => {
-                    let key = next_token(&mut chars);
-                    let val = next_string(&mut chars, "missing REM value")?;
-                    Ok(Command::Rem(key, val))
-                }
-                "CATALOG" => {
-                    let val = next_string(&mut chars, "missing CATALOG value")?;
-                    Ok(Command::Catalog(val))
-                }
-                "CDTEXTFILE" => {
-                    let val = next_string(&mut chars, "missing CDTEXTFILE value")?;
-                    Ok(Command::CdTextFile(val))
-                }
-                "TITLE" => {
-                    let val = next_string(&mut chars, "missing TITLE value")?;
-                    Ok(Command::Title(val))
-                }
-                "FILE" => {
-                    let path = next_string(&mut chars, "missing path for FILE")?;
-                    let format = next_token(&mut chars);
-                    Ok(Command::File(path, format))
-                }
-                "FLAGS" => {
-                    let flags = next_values(&mut chars);
-                    Ok(Command::Flags(flags))
-                }
-                "ISRC" => {
-                    let val = next_token(&mut chars);
-                    Ok(Command::Isrc(val))
-                }
-                "PERFORMER" => {
-                    let val = next_string(&mut chars, "missing PERFORMER value")?;
-                    Ok(Command::Performer(val))
-                }
-                "SONGWRITER" => {
-                    let val = next_string(&mut chars, "missing SONGWRITER value")?;
-                    Ok(Command::Songwriter(val))
-                }
-                "TRACK" => {
-                    let val = next_token(&mut chars);
-                    let mode = next_token(&mut chars);
-                    Ok(Command::Track(val, mode))
-                }
-                "PREGAP" => {
-                    let val = next_token(&mut chars);
-                    Ok(Command::Pregap(val))
-                }
-                "POSTGAP" => {
-                    let val = next_token(&mut chars);
-                    Ok(Command::Postgap(val))
-                }
-                "INDEX" => {
-                    let val = next_token(&mut chars);
-                    let time = next_token(&mut chars);
-                    Ok(Command::Index(val, time))
-                }
-                _ => {
-                    let rest: String = chars.collect();
-                    if rest.is_empty() {
-                        Ok(Command::None)
-                    } else {
-                        Ok(Command::Unknown(line.to_string()))
-                    }
+        Some(c) => match c.to_uppercase().as_ref() {
+            "REM" => {
+                let key = next_token(&mut chars);
+                let val = next_string(&mut chars, "missing REM value")?;
+                Ok(Command::Rem(key, val))
+            }
+            "CATALOG" => {
+                let val = next_string(&mut chars, "missing CATALOG value")?;
+                Ok(Command::Catalog(val))
+            }
+            "CDTEXTFILE" => {
+                let val = next_string(&mut chars, "missing CDTEXTFILE value")?;
+                Ok(Command::CdTextFile(val))
+            }
+            "TITLE" => {
+                let val = next_string(&mut chars, "missing TITLE value")?;
+                Ok(Command::Title(val))
+            }
+            "FILE" => {
+                let path = next_string(&mut chars, "missing path for FILE")?;
+                let format = next_token(&mut chars);
+                Ok(Command::File(path, format))
+            }
+            "FLAGS" => {
+                let flags = next_values(&mut chars);
+                Ok(Command::Flags(flags))
+            }
+            "ISRC" => {
+                let val = next_token(&mut chars);
+                Ok(Command::Isrc(val))
+            }
+            "PERFORMER" => {
+                let val = next_string(&mut chars, "missing PERFORMER value")?;
+                Ok(Command::Performer(val))
+            }
+            "SONGWRITER" => {
+                let val = next_string(&mut chars, "missing SONGWRITER value")?;
+                Ok(Command::Songwriter(val))
+            }
+            "TRACK" => {
+                let val = next_token(&mut chars);
+                let mode = next_token(&mut chars);
+                Ok(Command::Track(val, mode))
+            }
+            "PREGAP" => {
+                let val = next_token(&mut chars);
+                Ok(Command::Pregap(val))
+            }
+            "POSTGAP" => {
+                let val = next_token(&mut chars);
+                Ok(Command::Postgap(val))
+            }
+            "INDEX" => {
+                let val = next_token(&mut chars);
+                let time = next_token(&mut chars);
+                Ok(Command::Index(val, time))
+            }
+            _ => {
+                let rest: String = chars.collect();
+                if rest.is_empty() {
+                    Ok(Command::None)
+                } else {
+                    Ok(Command::Unknown(line.to_string()))
                 }
             }
-        }
+        },
         _ => Ok(Command::None),
     }
 }
@@ -302,19 +297,19 @@ mod tests {
     fn test_parsing_good_cue() {
         let cue = parse_from_file("test/fixtures/good.cue", true).unwrap();
         assert_eq!(cue.comments.len(), 4);
-        assert_eq!(cue.comments[0], (
-            "GENRE".to_string(),
-            "Alternative".to_string(),
-        ));
+        assert_eq!(
+            cue.comments[0],
+            ("GENRE".to_string(), "Alternative".to_string(),)
+        );
         assert_eq!(cue.comments[1], ("DATE".to_string(), "1991".to_string()));
-        assert_eq!(cue.comments[2], (
-            "DISCID".to_string(),
-            "860B640B".to_string(),
-        ));
-        assert_eq!(cue.comments[3], (
-            "COMMENT".to_string(),
-            "ExactAudioCopy v0.95b4".to_string(),
-        ));
+        assert_eq!(
+            cue.comments[2],
+            ("DISCID".to_string(), "860B640B".to_string(),)
+        );
+        assert_eq!(
+            cue.comments[3],
+            ("COMMENT".to_string(), "ExactAudioCopy v0.95b4".to_string(),)
+        );
         assert_eq!(cue.performer, Some("My Bloody Valentine".to_string()));
         assert_eq!(cue.songwriter, Some("foobar".to_string()));
         assert_eq!(cue.title, Some("Loveless".to_string()));
@@ -341,10 +336,7 @@ mod tests {
     #[test]
     fn test_parsing_unicode() {
         let cue = parse_from_file("test/fixtures/unicode.cue", true).unwrap();
-        assert_eq!(
-            cue.title,
-            Some("マジコカタストロフィ".to_string())
-        );
+        assert_eq!(cue.title, Some("マジコカタストロフィ".to_string()));
     }
 
     #[test]
@@ -487,14 +479,14 @@ mod tests {
         assert_eq!(cue.files[0].comments.len(), 1);
         assert_eq!(cue.files[0].tracks[0].comments.len(), 1);
         assert_eq!(cue.files[0].tracks[1].comments.len(), 2);
-        assert_eq!(cue.files[0].tracks[1].comments[0], (
-            "TRACK".to_string(),
-            "2".to_string(),
-        ));
-        assert_eq!(cue.files[0].tracks[1].comments[1], (
-            "TRACK".to_string(),
-            "2.1".to_string(),
-        ));
+        assert_eq!(
+            cue.files[0].tracks[1].comments[0],
+            ("TRACK".to_string(), "2".to_string(),)
+        );
+        assert_eq!(
+            cue.files[0].tracks[1].comments[1],
+            ("TRACK".to_string(), "2.1".to_string(),)
+        );
     }
 
     #[test]
@@ -520,13 +512,10 @@ mod tests {
         let cue = parse_from_file("test/fixtures/orphan_index.cue", false).unwrap();
         assert_eq!(cue.files[0].tracks.len(), 1);
         assert_eq!(cue.files[0].tracks[0].indices.len(), 1);
-        assert_eq!(cue.files[0].tracks[0].indices[0], (
-            "01".to_string(),
-            Duration::new(
-                257,
-                693333333,
-            ),
-        ));
+        assert_eq!(
+            cue.files[0].tracks[0].indices[0],
+            ("01".to_string(), Duration::new(257, 693333333,),)
+        );
     }
 
     #[test]

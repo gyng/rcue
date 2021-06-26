@@ -62,8 +62,8 @@ pub fn timestamp_to_duration(s: &str) -> Result<Duration, CueError> {
     let frames: String = iter.collect();
 
     let frame_seconds = frames.parse::<f64>()? / 75.0;
-    let seconds = minutes.parse::<u64>()? * 60 + seconds.parse::<u64>()? +
-        frame_seconds.floor() as u64;
+    let seconds =
+        minutes.parse::<u64>()? * 60 + seconds.parse::<u64>()? + frame_seconds.floor() as u64;
     let nanos = (frame_seconds.fract() * 1_000_000_000f64) as u32;
 
     Ok(Duration::new(seconds, nanos))
@@ -106,7 +106,9 @@ pub fn next_token(chars: &mut Chars) -> String {
 /// Fails if no string can be parsed (eg. an unexpected EOL)
 #[allow(dead_code)]
 pub fn next_string(chars: &mut Chars, error: &str) -> Result<String, CueError> {
-    let first = chars.next().ok_or(CueError::Parse(error.to_string()))?;
+    let first = chars
+        .next()
+        .ok_or_else(|| CueError::Parse(error.to_string()))?;
 
     if first == '"' {
         let mut escaped = false;
@@ -125,10 +127,11 @@ pub fn next_string(chars: &mut Chars, error: &str) -> Result<String, CueError> {
                 *c != '"'
             })
             .collect::<String>();
-        let _next_space = chars.next().ok_or(CueError::Parse(
-            "Unexpected error: could not consume next space. This is likely a bug."
-                .to_string(),
-        ));
+        let _next_space = chars.next().ok_or_else(|| {
+            CueError::Parse(
+                "Unexpected error: could not consume next space. This is likely a bug.".to_string(),
+            )
+        });
 
         Ok(unescape_quotes(&string))
     } else {
@@ -156,7 +159,6 @@ pub fn next_values(chars: &mut Chars) -> Vec<String> {
     let string: String = chars.collect();
     string.split_whitespace().map(|s| s.to_string()).collect()
 }
-
 
 #[cfg(test)]
 mod tests {
