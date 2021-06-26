@@ -316,12 +316,12 @@ mod tests {
         assert_eq!(cue.cd_text_file, Some("./cdtextfile".to_string()));
 
         assert_eq!(cue.files.len(), 1);
-        let ref file = cue.files[0];
+        let ref file = &cue.files[0];
         assert_eq!(file.file, "My Bloody Valentine - Loveless.wav");
         assert_eq!(file.format, "WAVE");
 
         assert_eq!(file.tracks.len(), 2);
-        let ref track = file.tracks[0];
+        let ref track = &file.tracks[0];
         assert_eq!(track.no, "01".to_string());
         assert_eq!(track.format, "AUDIO".to_string());
         assert_eq!(track.songwriter, Some("barbaz bax".to_string()));
