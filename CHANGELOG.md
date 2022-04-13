@@ -1,3 +1,7 @@
+# 0.1.3
+
+- Update install instructions in published docstrings
+
 # 0.1.2
 
 - Update doc links in published readme with links to docs.rs

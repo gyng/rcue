@@ -13,7 +13,7 @@ Add this to your `Cargo.toml` under `[dependencies]`
 via [crates.io](https://crates.io/crates/rcue)
 
 ```toml
-rcue = "0.1.2"
+rcue = "0.1.3"
 ```
 
 or from GitHub directly

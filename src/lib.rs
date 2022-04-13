@@ -20,14 +20,6 @@
 //!
 //! ## Usage
 //!
-//! Add this to your `Cargo.toml` under `[dependencies]`
-//!
-//! ```text
-//! rcue = { git = "https://github.com/gyng/rcue" }
-//! ```
-//!
-//! Then in your program:
-//!
 //! ```rust
 //! extern crate rcue;
 //!
