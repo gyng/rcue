@@ -1,11 +1,11 @@
 [package]
 name = "rcue"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Ng Guoyou <ng.guoyou@gmail.com>"]
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/gyng/rcue"
-documentation = "https://gyng.github.io/rcue"
+documentation = "https://docs.rs/rcue/latest/rcue/"
 description = "Simple CUE sheet reader"
 categories = ["parsing"]
 keywords = ["cue"]
