@@ -1,8 +1,8 @@
 # rcue
 
-![crates.io](https://img.shields.io/crates/v/rcue.svg)
+[![crates.io](https://img.shields.io/crates/v/rcue.svg)](https://crates.io/crates/rcue)
 
-[Documentation](https://docs.rs/rcue/latest/rcue/)
+[API Documentation](https://docs.rs/rcue/latest/rcue/)
 
 Simple CUE sheet reader for Rust. Has no dependencies and compiles on stable.
 
