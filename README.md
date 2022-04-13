@@ -1,6 +1,6 @@
 # rcue
 
-[Documentation](https://gyng.github.io/rcue)
+[Documentation](https://docs.rs/rcue/latest/rcue/)
 
 Simple CUE sheet reader for Rust. Has no dependencies and compiles on stable.
 
