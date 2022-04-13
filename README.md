@@ -6,7 +6,7 @@ Simple CUE sheet reader for Rust. Has no dependencies and compiles on stable.
 
 ## Usage
 
-See [generated documentation](https://gyng.github.io/rcue) or tests in [`parser.rs`](src/parser.rs) for usage and some examples.
+See [generated documentation](https://docs.rs/rcue/latest/rcue/) or tests in [`parser.rs`](src/parser.rs) for usage and some examples.
 
 Add this to your `Cargo.toml` under `[dependencies]`
 
@@ -61,8 +61,6 @@ The current implementation has the following known limitations:
   ```
 
 * Escaped double quotation marks in strings `\"` are escaped into `"`.
-
-Consider [leoschwarz/cue_sheet](https://github.com/leoschwarz/cue_sheet) if this implementation is unsuitable for your use case.
 
 ## Development
 
