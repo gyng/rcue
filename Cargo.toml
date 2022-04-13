@@ -1,6 +1,6 @@
 [package]
 name = "rcue"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Ng Guoyou <ng.guoyou@gmail.com>"]
 readme = "README.md"
 license = "MIT"

@@ -10,10 +10,10 @@ See [generated documentation](https://gyng.github.io/rcue) or tests in [`parser.
 
 Add this to your `Cargo.toml` under `[dependencies]`
 
-via crates.io
+via [crates.io](https://crates.io/crates/rcue)
 
 ```toml
-rcue = "0.1.0"
+rcue = "0.1.1"
 ```
 
 or from GitHub directly
