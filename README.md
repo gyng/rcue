@@ -1,5 +1,7 @@
 # rcue
 
+![crates.io](https://img.shields.io/crates/v/rcue.svg)
+
 [Documentation](https://docs.rs/rcue/latest/rcue/)
 
 Simple CUE sheet reader for Rust. Has no dependencies and compiles on stable.
@@ -13,7 +15,7 @@ Add this to your `Cargo.toml` under `[dependencies]`
 via [crates.io](https://crates.io/crates/rcue)
 
 ```toml
-rcue = "0.1.3"
+rcue = "*"
 ```
 
 or from GitHub directly
